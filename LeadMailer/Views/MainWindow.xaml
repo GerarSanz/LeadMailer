@@ -1,0 +1,1311 @@
+<Window x:Class="LeadMailer.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LeadMailer.ViewModels"
+        xmlns:conv="clr-namespace:LeadMailer.Converters"
+        xmlns:beh="clr-namespace:LeadMailer.Behaviors"
+        Title="LeadMailer — Automatización de correos"
+        Height="780" Width="1280"
+        MinHeight="660" MinWidth="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgBrush}">
+
+    <Window.DataContext>
+        <vm:MainViewModel/>
+    </Window.DataContext>
+
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter         x:Key="BoolVis"/>
+        <conv:InvertBoolToVisibilityConverter   x:Key="InvBoolVis"/>
+        <conv:SentStatusBrushConverter          x:Key="SentBrush"/>
+        <conv:LeadStatusBrushConverter          x:Key="LeadStatusBrush"/>
+        <conv:DiscardButtonLabelConverter        x:Key="DiscardLabel"/>
+        <conv:NullToVisibilityConverter         x:Key="NullVis"/>
+        <conv:EmptyStringToVisibilityConverter  x:Key="EmptyStrVis"/>
+        <conv:EqualStringConverter              x:Key="EqStrConverter"/>
+        <conv:LeadLabelTextConverter            x:Key="LeadLabelText"/>
+        <conv:LeadLabelBrushConverter           x:Key="LeadLabelBrush"/>
+        <conv:LeadLabelForegroundConverter      x:Key="LeadLabelFg"/>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="230"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ══════════════════════════════════════════════════════════
+             SIDEBAR
+        ══════════════════════════════════════════════════════════ -->
+        <Border Grid.Column="0" Background="{StaticResource SidebarGradientBrush}">
+            <DockPanel LastChildFill="False">
+
+                <!-- Brand -->
+                <StackPanel DockPanel.Dock="Top" Margin="22,28,22,20">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="38" Height="38" Background="{StaticResource PrimaryBrush}"
+                                CornerRadius="10" Margin="0,0,12,0">
+                            <TextBlock Text="✉" FontSize="18" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="LeadMailer" FontSize="18" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Text="{Binding AppVersion}" FontSize="10" Foreground="#475569"/>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <Border DockPanel.Dock="Top" Height="1" Background="#1E293B" Margin="16,0,16,12"/>
+
+                <!-- Nav section label -->
+                <TextBlock DockPanel.Dock="Top" Text="MENÚ PRINCIPAL"
+                           FontSize="10" FontWeight="SemiBold" Foreground="#334155"
+                           Margin="26,0,0,8"/>
+
+                <!-- Nav buttons -->
+                <StackPanel DockPanel.Dock="Top" Margin="10,0">
+
+                    <Button Command="{Binding NavigateCommand}" CommandParameter="Leads">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentView}" Value="Leads">
+                                        <Setter Property="Background" Value="#1E3A8A"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Grid Width="180">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="📋" FontSize="15" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Leads" FontSize="13" VerticalAlignment="Center"/>
+                            <Border Grid.Column="2" Background="{StaticResource AccentBrush}" CornerRadius="10"
+                                    Padding="8,2" Visibility="{Binding PendingCount, Converter={StaticResource NullVis}}">
+                                <TextBlock Text="{Binding PendingCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
+                            </Border>
+                        </Grid>
+                    </Button>
+
+                    <Button Command="{Binding NavigateCommand}" CommandParameter="History">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentView}" Value="History">
+                                        <Setter Property="Background" Value="#1E3A8A"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Grid Width="180">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="🕓" FontSize="15" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Historial" FontSize="13" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Button>
+
+                    <Button Command="{Binding NavigateCommand}" CommandParameter="Courses">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentView}" Value="Courses">
+                                        <Setter Property="Background" Value="#1E3A8A"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentView}" Value="CourseEdit">
+                                        <Setter Property="Background" Value="#1E3A8A"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Grid Width="180">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="🎓" FontSize="15" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Cursos" FontSize="13" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Button>
+
+                    <Button Command="{Binding NavigateCommand}" CommandParameter="Settings">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentView}" Value="Settings">
+                                        <Setter Property="Background" Value="#1E3A8A"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Grid Width="180">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="⚙" FontSize="15" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Configuración" FontSize="13" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Button>
+                </StackPanel>
+
+                <!-- Stats bottom -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="16,0,16,24">
+                    <Border Height="1" Background="#1E293B" Margin="0,0,0,16"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding PendingCount}" FontSize="24" FontWeight="Bold"
+                                       Foreground="#F59E0B" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Pendientes" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding SentCount}" FontSize="24" FontWeight="Bold"
+                                       Foreground="#22C55E" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Enviados" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding FollowUpTodayCount}" FontSize="24" FontWeight="Bold"
+                                       Foreground="#38BDF8" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Hoy" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════════════
+             CONTENT AREA
+        ══════════════════════════════════════════════════════════ -->
+        <Grid Grid.Column="1">
+
+            <!-- ─────────────────────────────────────────
+                 VIEW: LEADS
+            ───────────────────────────────────────── -->
+            <DockPanel Margin="28">
+                <DockPanel.Style>
+                    <Style TargetType="DockPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentView}" Value="Leads">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DockPanel.Style>
+
+                <!-- Page title -->
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
+                    <TextBlock Text="Leads" FontSize="26" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Carga el Excel diario y envía correos personalizados a cada lead"
+                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <!-- File picker -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0">
+                            <TextBlock Text="ARCHIVO EXCEL" Style="{StaticResource FieldLabel}" FontSize="11"/>
+                            <TextBlock Text="{Binding ExcelFilePath, FallbackValue='Ningún archivo seleccionado'}"
+                                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="📂  Examinar"
+                                Command="{Binding BrowseExcelCommand}"
+                                Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                FontSize="12" Padding="10,6"/>
+                        <Button Grid.Column="2" Content="🔄  Cargar"
+                                Command="{Binding LoadLeadsCommand}"
+                                Style="{StaticResource BtnPrimary}"
+                                FontSize="12" Padding="10,6"/>
+                    </Grid>
+                </Border>
+
+                <!-- Course warning banner -->
+                <Border DockPanel.Dock="Top" Background="#FEF3C7" CornerRadius="8" Padding="14,10"
+                        Margin="0,0,0,10"
+                        Visibility="{Binding HasCourseWarning, Converter={StaticResource BoolVis}}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="⚠" FontSize="18" Foreground="#D97706"
+                                   VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <Button DockPanel.Dock="Right"
+                                Content="Ir a Cursos →"
+                                Command="{Binding NavigateCommand}" CommandParameter="Courses"
+                                Background="Transparent" BorderThickness="0"
+                                Foreground="#1D4ED8" FontWeight="SemiBold" FontSize="13" Cursor="Hand"
+                                Margin="12,0,0,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding CourseWarningText}" FontSize="13" Foreground="#92400E"
+                                   TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Border>
+
+                <!-- Action toolbar -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <StackPanel Orientation="Vertical">
+                        <!-- Primera fila de botones -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="✓  Todos"
+                                    Command="{Binding SelectAllCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"/>
+                            <Button Grid.Column="1" Content="✗  Ninguno"
+                                    Command="{Binding DeselectAllCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"/>
+                            <Button Grid.Column="2" Content="📅  Hoy"
+                                    Command="{Binding SelectFollowUpTodayCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Seleccionar leads con seguimiento para hoy"/>
+                            <TextBlock Grid.Column="3" Text="{Binding StatusMessage}"
+                                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center" HorizontalAlignment="Right"
+                                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                       Margin="10,0,0,0"/>
+                        </Grid>
+                        <!-- Segunda fila de botones -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="💬  WhatsApp"
+                                    Command="{Binding SendWhatsAppToSelectedCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Enviar WhatsApp a seleccionados"/>
+                            <Button Grid.Column="1" Content="⭳  CSV"
+                                    Command="{Binding ExportFilteredLeadsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Exportar a CSV"/>
+                            <Button Grid.Column="2" Content="↻  Reintentar"
+                                    Command="{Binding RetryFailedCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Reintentar envíos fallidos"/>
+                            <Button Grid.Column="3"
+                                    Content="🚀  Enviar"
+                                    Command="{Binding SendSelectedCommand}"
+                                    Style="{StaticResource BtnSuccess}"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvBoolVis}}"
+                                    VerticalAlignment="Center" FontSize="12"/>
+                            <TextBlock Grid.Column="4"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ══ BARRA DE FILTROS ══ -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="55"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Búsqueda libre -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="BUSCAR" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource InputStyle}" Height="34"/>
+                        </StackPanel>
+
+                        <!-- Filtro por curso -->
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="CURSO" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding CourseFilterItems}"
+                                      SelectedItem="{Binding SelectedCourseFilter}"
+                                      DisplayMemberPath="NombreCorto"
+                                      Height="34" VerticalContentAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+
+                        <!-- Filtro por estado -->
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="ESTADO" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding StatusFilterOptions}"
+                                      SelectedItem="{Binding SelectedStatusFilter}"
+                                      Height="34" VerticalContentAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+
+                        <!-- Contador de resultados -->
+                        <StackPanel Grid.Column="6" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding FilteredCount}" FontSize="20" FontWeight="Bold"
+                                       Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="resultados" FontSize="9"
+                                       Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- DataGrid -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Padding="0">
+                    <DataGrid ItemsSource="{Binding FilteredLeads}"
+                              CanUserResizeColumns="True"
+                              CanUserSortColumns="True">
+                        <DataGrid.Columns>
+
+                            <!-- Checkbox -->
+                            <DataGridTemplateColumn Header="" Width="46" CanUserResize="False" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                  IsEnabled="{Binding CanSelect}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Estado badge -->
+                            <DataGridTemplateColumn Header="ESTADO" Width="140" CanUserResize="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="5" Padding="7,3" HorizontalAlignment="Left"
+                                                Background="{Binding Status, Converter={StaticResource LeadStatusBrush}}">
+                                            <TextBlock Text="{Binding EstadoTexto}" FontSize="11"
+                                                       FontWeight="SemiBold" Foreground="White"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Etiqueta manual -->
+                            <DataGridTemplateColumn Header="ETIQUETA" Width="130" CanUserResize="False" CanUserSort="False">
+                                <!-- Vista: badge de color siempre visible -->
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="5" Padding="7,3" HorizontalAlignment="Left" Cursor="Hand"
+                                                Background="{Binding Label, Converter={StaticResource LeadLabelBrush}}">
+                                            <TextBlock Text="{Binding Label, Converter={StaticResource LeadLabelText}}"
+                                                       FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{Binding Label, Converter={StaticResource LeadLabelFg}}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                                <!-- Edición (doble-click): ComboBox -->
+                                <DataGridTemplateColumn.CellEditingTemplate>
+                                    <DataTemplate>
+                                        <ComboBox ItemsSource="{Binding DataContext.LeadLabelOptions,
+                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                  SelectedValue="{Binding Label, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  SelectedValuePath="Value"
+                                                  DisplayMemberPath="Display"
+                                                  IsDropDownOpen="True"
+                                                  Height="28" FontSize="11" VerticalContentAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellEditingTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="NOMBRE"     Binding="{Binding Nombre}"           Width="160"/>
+                            <DataGridTextColumn Header="EMAIL"      Binding="{Binding Email}"            Width="200"/>
+                            <DataGridTextColumn Header="CURSO"      Binding="{Binding NombreCurso}"      Width="*"/>
+                            <DataGridTextColumn Header="PLATAFORMA" Binding="{Binding Plataforma}"       Width="90"/>
+                            <DataGridTextColumn Header="PROVINCIA"  Binding="{Binding Provincia}"        Width="100"/>
+                            <DataGridTextColumn Header="SIT. LAB."  Binding="{Binding SituacionLaboral}" Width="120"/>
+
+                            <DataGridTemplateColumn Header="NOTAS SEGUIMIENTO" Width="220">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                 Style="{StaticResource InputStyle}"
+                                                 Height="30" FontSize="12" Padding="8,0"
+                                                 ToolTip="Ej: No contesta, llamar mañana 10:00, interesado en septiembre"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="PRÓX. CONTACTO" Width="165">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding NextContact, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                 Style="{StaticResource InputStyle}"
+                                                 Height="30" FontSize="12" Padding="8,0"
+                                                 ToolTip="Ej: 25/03 10:30, llamar miércoles, WhatsApp tarde"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Acciones por fila -->
+                            <DataGridTemplateColumn Header="ACCIONES" Width="280" CanUserResize="False" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="2,2">
+                                            <Button Content="💬"
+                                                    Command="{Binding DataContext.SendWhatsAppCommand,
+                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource BtnSecondary}"
+                                                    FontSize="11" Padding="5,2" Margin="0,0,3,0"
+                                                    ToolTip="Enviar WhatsApp"/>
+                                            <Button Content="↻"
+                                                    Command="{Binding DataContext.ResendLeadCommand,
+                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource BtnSecondary}"
+                                                    FontSize="11" Padding="5,2" Margin="0,0,3,0"
+                                                    ToolTip="Reenviar correo"/>
+                                            <Button Content="❌"
+                                                    Command="{Binding DataContext.ToggleDiscardLeadCommand,
+                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource BtnSecondary}"
+                                                    FontSize="11" Padding="5,2" Margin="0,0,3,0"
+                                                    ToolTip="{Binding IsDiscarded, Converter={StaticResource DiscardLabel}}"/>
+                                            <Button Content="🗑"
+                                                    Command="{Binding DataContext.DeleteLeadCommand,
+                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource BtnSecondary}"
+                                                    FontSize="11" Padding="5,2"
+                                                    Foreground="#B91C1C" BorderBrush="#FECACA"
+                                                    ToolTip="Eliminar lead"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </DockPanel>
+
+            <!-- ─────────────────────────────────────────
+                 VIEW: HISTORY
+            ───────────────────────────────────────── -->
+            <DockPanel Margin="28">
+                <DockPanel.Style>
+                    <Style TargetType="DockPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentView}" Value="History">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DockPanel.Style>
+
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,18">
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="10"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Historial de envíos" FontSize="26" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Revisa enviados, fallidos y errores para seguimiento comercial"
+                                   FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="⭳  Exportar CSV"
+                            Command="{Binding ExportHistoryCsvCommand}"
+                            Style="{StaticResource BtnSecondary}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="3" Content="🧹  Limpiar historial"
+                            Command="{Binding ClearHistoryCommand}"
+                            Style="{StaticResource BtnSecondary}" VerticalAlignment="Center"/>
+                </Grid>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="170"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="BUSCAR" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Text="{Binding HistorySearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource InputStyle}" Height="34"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="ESTADO" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding HistoryStatusFilterOptions}"
+                                      SelectedItem="{Binding HistoryStatusFilter}"
+                                      Height="34" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Padding="0">
+                    <DataGrid ItemsSource="{Binding FilteredHistory}" CanUserResizeColumns="True" CanUserSortColumns="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="FECHA" Binding="{Binding FechaEnvio, StringFormat=dd/MM/yyyy HH:mm}" Width="140"/>
+                            <DataGridTextColumn Header="NOMBRE" Binding="{Binding NombreLead}" Width="170"/>
+                            <DataGridTextColumn Header="EMAIL" Binding="{Binding Email}" Width="220"/>
+                            <DataGridTextColumn Header="CURSO" Binding="{Binding CursoRaw}" Width="*"/>
+                            <DataGridTemplateColumn Header="RESULTADO" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="5" Padding="7,3" HorizontalAlignment="Left">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#DCFCE7"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Success}" Value="False">
+                                                            <Setter Property="Background" Value="#FEE2E2"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock FontSize="11" FontWeight="SemiBold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="Correcto"/>
+                                                        <Setter Property="Foreground" Value="#166534"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Success}" Value="False">
+                                                                <Setter Property="Text" Value="Fallido"/>
+                                                                <Setter Property="Foreground" Value="#991B1B"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="ERROR" Binding="{Binding Error}" Width="260"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </DockPanel>
+
+            <!-- ─────────────────────────────────────────
+                 VIEW: COURSES LIST
+            ───────────────────────────────────────── -->
+            <DockPanel Margin="28">
+                <DockPanel.Style>
+                    <Style TargetType="DockPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentView}" Value="Courses">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DockPanel.Style>
+
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,20">
+                    <TextBlock Text="Cursos" FontSize="26" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Configura la información de cada curso para los correos automáticos"
+                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <!-- Empty state -->
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}"
+                        Visibility="{Binding Courses.Count, Converter={StaticResource NullVis}, FallbackValue=Visible}">
+                    <!-- This border shows only when 0 items; use code-behind trick or always show scroll -->
+                </Border>
+
+                <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- Empty placeholder -->
+                        <Border Margin="0,0,0,0">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource CardStyle}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Courses.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel HorizontalAlignment="Center" Margin="0,48">
+                                <TextBlock Text="🎓" FontSize="52" HorizontalAlignment="Center"/>
+                                <TextBlock Text="No hay cursos registrados" FontSize="17" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" Margin="0,14,0,6"
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="Carga un Excel con leads para detectar cursos automáticamente"
+                                           FontSize="13" Foreground="{StaticResource TextSecondaryBrush}"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Courses wrap panel -->
+                        <ItemsControl ItemsSource="{Binding Courses}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource CardStyle}" Width="310" Margin="0,0,16,16">
+                                        <DockPanel LastChildFill="False">
+                                            <!-- Header gradient -->
+                                            <Border DockPanel.Dock="Top"
+                                                    Background="{StaticResource PrimaryGradientBrush}"
+                                                    CornerRadius="8" Padding="14,12" Margin="-4,-4,-4,14">
+                                                <TextBlock Text="{Binding NombreCorto}" FontSize="13"
+                                                           FontWeight="SemiBold" Foreground="White"
+                                                           TextWrapping="Wrap" MaxHeight="58"/>
+                                            </Border>
+                                            <!-- Info -->
+                                            <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="56"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Inicio:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding FechaInicio, FallbackValue='—'}" FontSize="12"/>
+                                            </Grid>
+                                            <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="56"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="Fin:" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding FechaFin, FallbackValue='—'}" FontSize="12"/>
+                                            </Grid>
+                                            <!-- Badge -->
+                                            <Border DockPanel.Dock="Top" CornerRadius="5" Padding="8,4"
+                                                    HorizontalAlignment="Left" Margin="0,0,0,14">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="#DCFCE7"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding TextoMarketing}" Value="">
+                                                                <Setter Property="Background" Value="#FEF3C7"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock FontSize="11" FontWeight="SemiBold">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="✓ Configurado"/>
+                                                            <Setter Property="Foreground" Value="#166534"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding TextoMarketing}" Value="">
+                                                                    <Setter Property="Text" Value="⚠ Sin configurar"/>
+                                                                    <Setter Property="Foreground" Value="#92400E"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                            <!-- Edit/Delete buttons -->
+                                            <Grid DockPanel.Dock="Top">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition/>
+                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <Button Grid.Column="0" Content="✏  Editar curso"
+                                                        Style="{StaticResource BtnPrimary}"
+                                                        HorizontalAlignment="Stretch"
+                                                        Command="{Binding DataContext.EditCourseCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+
+                                                <Button Grid.Column="2" Content="🗑  Eliminar"
+                                                        Style="{StaticResource BtnSecondary}"
+                                                        HorizontalAlignment="Stretch"
+                                                        Foreground="#B91C1C"
+                                                        BorderBrush="#FECACA"
+                                                        Command="{Binding DataContext.DeleteCourseCommand,
+                                                                  RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </Grid>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+
+            <!-- ─────────────────────────────────────────
+                 VIEW: COURSE EDIT
+            ───────────────────────────────────────── -->
+            <DockPanel Margin="28">
+                <DockPanel.Style>
+                    <Style TargetType="DockPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentView}" Value="CourseEdit">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DockPanel.Style>
+
+                <!-- Edit header -->
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Editar curso" FontSize="26" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{Binding EditingCourse.NombreCorto}"
+                                   FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="✗  Cancelar" Command="{Binding CancelEditCommand}"
+                                Style="{StaticResource BtnSecondary}" Margin="0,0,10,0"/>
+                        <Button Content="💾  Guardar cambios" Command="{Binding SaveCourseCommand}"
+                                Style="{StaticResource BtnSuccess}"/>
+                    </StackPanel>
+                </Grid>
+
+                <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <!-- Nombre + Asunto -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="18"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <TextBlock Text="NOMBRE CORTO DEL CURSO" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.NombreCorto, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2">
+                                    <TextBlock Text="ASUNTO DEL EMAIL" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.AsuntoEmail, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+                                    <TextBlock Text="NOMBRE COMPLEMENTARIO (SE USA EN EL EMAIL)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.NombreComplementario, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Fechas + horario -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition/><ColumnDefinition Width="18"/>
+                                    <ColumnDefinition/><ColumnDefinition Width="18"/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="FECHA DE INICIO" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.FechaInicio, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="FECHA DE FIN" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.FechaFin, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="HORARIO / MODALIDAD" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.HorarioInfo, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Texto marketing + Gemini -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <!-- Header row -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="TEXTO DE MARKETING (aparece en el cuerpo del email)"
+                                               Style="{StaticResource FieldLabel}" VerticalAlignment="Center" Margin="0"/>
+                                    <!-- Gemini button -->
+                                    <Button Grid.Column="1"
+                                            Command="{Binding GenerateMarketingTextCommand}"
+                                            IsEnabled="{Binding IsGenerating, Converter={StaticResource InvBoolVis}}"
+                                            Cursor="Hand" BorderThickness="0" Padding="14,8">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                                    <Border.Background>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#4285F4" Offset="0"/>
+                                                            <GradientStop Color="#0EA5E9" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Border.Background>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <!-- Google G icon approximation -->
+                                                        <Border Width="18" Height="18" CornerRadius="9"
+                                                                Background="White" Margin="0,0,7,0">
+                                                            <TextBlock Text="G" FontSize="11" FontWeight="Bold"
+                                                                       Foreground="#4285F4"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <TextBlock VerticalAlignment="Center" FontSize="12"
+                                                                   FontWeight="SemiBold" Foreground="White">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="Generar con Gemini ✨"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsGenerating}" Value="True">
+                                                                            <Setter Property="Text" Value="Generando…"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Opacity" Value="0.88"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsEnabled" Value="False">
+                                                        <Setter Property="Opacity" Value="0.55"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Error banner -->
+                                <Border Background="#FEF2F2" CornerRadius="7" Padding="12,8" Margin="0,0,0,8"
+                                        Visibility="{Binding HasGeminiError, Converter={StaticResource BoolVis}}">
+                                    <TextBlock Text="{Binding GeminiError}" FontSize="12"
+                                               Foreground="#991B1B" TextWrapping="Wrap"/>
+                                </Border>
+
+                                <!-- Generating animation -->
+                                <Border Background="#EFF6FF" CornerRadius="7" Padding="12,10" Margin="0,0,0,8"
+                                        Visibility="{Binding IsGenerating, Converter={StaticResource BoolVis}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="✨" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Gemini está redactando el texto de marketing…"
+                                                   FontSize="13" Foreground="#1E40AF" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Text area -->
+                                <RichTextBox Height="130"
+                                             MinHeight="90"
+                                             BorderBrush="{StaticResource BorderBrush}"
+                                             BorderThickness="1"
+                                             Background="White"
+                                             Foreground="{StaticResource TextPrimaryBrush}"
+                                             FontSize="13"
+                                             Padding="10,8"
+                                             VerticalScrollBarVisibility="Auto"
+                                             beh:RichTextBoxBindingBehavior.DocumentXaml="{Binding EditingCourse.TextoMarketingRich, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                                <!-- Hint -->
+                                <TextBlock Margin="0,6,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}">
+                                    Gemini usará el nombre del curso, fechas, horario y requisitos que hayas rellenado arriba para generar el texto.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Texto para WhatsApp -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="TEXTO PARA WHATSAPP" Style="{StaticResource FieldLabel}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Mensaje personalizado que aparecerá al abrir WhatsApp desde los leads" Style="{StaticResource FieldLabel}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <TextBox Text="{Binding WhatsappMessage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource TextAreaStyle}" Height="80"
+                                         ToolTip="Usa {nombre} y {curso} como variables. Ejemplo: 'Hola {nombre}, información sobre {curso}'"/>
+                                <!-- Hint -->
+                                <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}">
+                                    💡 Deja vacío para usar el mensaje genérico. Usa {nombre} para el nombre del lead y {curso} para el nombre del curso.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Requisitos + Documentación -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="18"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="REQUISITOS DE ACCESO" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.RequisitosAcceso, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource TextAreaStyle}" Height="100"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="DOCUMENTACIÓN NECESARIA" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.DocumentacionNecesaria, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource TextAreaStyle}" Height="100"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- URL inscripción + Info adicional -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="12"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="18"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <TextBlock Text="URL DISEÑO FORMATIVO OFICIAL" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.UrlFichaInscripcion, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2">
+                                    <TextBlock Text="INFORMACIÓN ADICIONAL" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding EditingCourse.InfoAdicional, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource TextAreaStyle}" Height="100"/>
+                                </StackPanel>
+
+                                <Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="PDF ADJUNTO (DISEÑO FORMATIVO OFICIAL)" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding EditingCourse.PdfAdjuntoPath, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="38"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Bottom">
+                                        <Button Content="📎  Seleccionar PDF"
+                                                Command="{Binding BrowseCoursePdfCommand}"
+                                                Style="{StaticResource BtnSecondary}"/>
+                                        <Button Content="🧹  Quitar"
+                                                Command="{Binding ClearCoursePdfCommand}"
+                                                Style="{StaticResource BtnSecondary}"
+                                                Margin="8,0,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <!-- Referencia Excel (readonly) -->
+                        <Border Background="#F8FAFC" CornerRadius="10" Padding="16,12" Margin="0,0,0,14"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                            <StackPanel>
+                                <TextBlock Text="REFERENCIA EXCEL (solo lectura)" Style="{StaticResource FieldLabel}"/>
+                                <TextBlock Text="{Binding EditingCourse.CursoRaw}" FontSize="12"
+                                           Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+
+            <!-- ─────────────────────────────────────────
+                 VIEW: SETTINGS
+            ───────────────────────────────────────── -->
+            <DockPanel Margin="28">
+                <DockPanel.Style>
+                    <Style TargetType="DockPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentView}" Value="Settings">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DockPanel.Style>
+
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,20">
+                    <TextBlock Text="Configuración SMTP" FontSize="26" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Configura el servidor de correo para los envíos automáticos"
+                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <ScrollViewer DockPanel.Dock="Top" VerticalScrollBarVisibility="Auto">
+                    <StackPanel MaxWidth="640" HorizontalAlignment="Left">
+
+                        <!-- Server settings -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="SERVIDOR Y PUERTO" Style="{StaticResource FieldLabel}" Margin="0,0,0,8"/>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition Width="130"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="HOST SMTP" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding SmtpConfig.Host, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="38"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="PUERTO" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding SmtpConfig.Port, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="38"/>
+                                    </StackPanel>
+                                </Grid>
+                                <CheckBox Content="Usar TLS/SSL (recomendado)"
+                                          IsChecked="{Binding SmtpConfig.EnableSsl}"
+                                          FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="PAUSA ENTRE ENVÍOS (ms)" Style="{StaticResource FieldLabel}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBox Text="{Binding SmtpConfig.SendDelayMs, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Width="120" Height="34"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Credentials -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="CREDENCIALES" Style="{StaticResource FieldLabel}" Margin="0,0,0,8"/>
+                                <TextBlock Text="USUARIO / EMAIL" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding SmtpConfig.Username, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="38" Margin="0,0,0,12"/>
+                                <TextBlock Text="CONTRASEÑA" Style="{StaticResource FieldLabel}"/>
+                                <PasswordBox x:Name="PwdBox" Height="38"
+                                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                             Padding="12,0" FontSize="13"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- From address -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="16"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="NOMBRE REMITENTE" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding SmtpConfig.FromName, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="EMAIL REMITENTE" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox Text="{Binding SmtpConfig.FromEmail, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- WhatsApp contact -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="CONTACTO WHATSAPP" Style="{StaticResource FieldLabel}" Margin="0,0,0,8"/>
+                                <TextBlock Text="NÚMERO WHATSAPP (aparecerá en los emails como botón de contacto)" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding SmtpConfig.WhatsAppNumber, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="38"
+                                         ToolTip="Ejemplo: +34600123456 o 600123456. Los números españoles se formatean automáticamente"/>
+                                <TextBlock Text="💡 Deja en blanco si no deseas mostrar el botón de WhatsApp en los emails"
+                                           FontSize="11" Foreground="#64748B" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Buttons + result -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Content="💾  Guardar configuración" Command="{Binding SaveSmtpCommand}"
+                                    Style="{StaticResource BtnPrimary}" Margin="0,0,10,0"/>
+                            <Button Content="🔌  Probar conexión" Command="{Binding TestSmtpCommand}"
+                                    Style="{StaticResource BtnSecondary}"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvBoolVis}}"/>
+                        </StackPanel>
+
+                        <Border CornerRadius="8" Padding="14,10" Margin="0,0,0,14"
+                                Visibility="{Binding SmtpTestResult, Converter={StaticResource EmptyStrVis}}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#F0FDF4"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SmtpTestResultIsError}" Value="True">
+                                            <Setter Property="Background" Value="#FEF2F2"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <TextBlock Text="{Binding SmtpTestResult}" FontSize="13">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#166534"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding SmtpTestResultIsError}" Value="True">
+                                                <Setter Property="Foreground" Value="#991B1B"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Border>
+
+                        <!-- Gmail tip -->
+                        <Border Background="#EFF6FF" CornerRadius="10" Padding="18,14"
+                                BorderBrush="#BFDBFE" BorderThickness="1" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="💡 Configuración Gmail" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="22"/><RowDefinition Height="22"/>
+                                        <RowDefinition Height="22"/><RowDefinition Height="22"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Host:" FontSize="12" Foreground="#64748B" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="smtp.gmail.com" FontSize="12" Foreground="#1E40AF"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Puerto:" FontSize="12" Foreground="#64748B" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="587" FontSize="12" Foreground="#1E40AF"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="SSL:" FontSize="12" Foreground="#64748B" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Activado" FontSize="12" Foreground="#1E40AF"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Contraseña:" FontSize="12" Foreground="#64748B" FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Text="Contraseña de aplicación (no la de tu cuenta)"
+                                               FontSize="12" Foreground="#1E40AF" TextWrapping="Wrap"/>
+                                </Grid>
+                                <TextBlock Margin="0,10,0,0" FontSize="12" Foreground="#3730A3" TextWrapping="Wrap">
+                                    Ruta Gmail: Seguridad → Verificación en 2 pasos → Contraseñas de aplicación
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- IA — Generación de textos -->
+                        <Border CornerRadius="10" Padding="18,16" BorderThickness="1"
+                                BorderBrush="#E9D5FF" Background="#FAF5FF">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock Text="✨" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="IA — Generación automática de textos de marketing"
+                                               FontSize="13" FontWeight="SemiBold" Foreground="#6B21A8"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <TextBlock Text="PROVEEDOR DE IA" Style="{StaticResource FieldLabel}" Foreground="#7C3AED" Margin="0,0,0,8"/>
+
+                                <!-- OpenRouter card -->
+                                <Border CornerRadius="8" Padding="14,12" Margin="0,0,0,8" BorderThickness="2">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="BorderBrush" Value="#C4B5FD"/>
+                                            <Setter Property="Background" Value="White"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SmtpConfig.AiProvider}" Value="OpenRouter">
+                                                    <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                                    <Setter Property="Background" Value="#F5F3FF"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                            <RadioButton GroupName="AiProvider" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                         IsChecked="{Binding SmtpConfig.AiProvider,
+                                                             Converter={StaticResource EqStrConverter},
+                                                             ConverterParameter=OpenRouter}"/>
+                                            <TextBlock Text="OpenRouter — Llama 3.1 8B" FontWeight="Bold"
+                                                       FontSize="13" Foreground="#4C1D95" VerticalAlignment="Center"/>
+                                            <Border Background="#16A34A" CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                                <TextBlock Text="GRATIS" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="Sin límite de cuota • openrouter.ai" FontSize="11" Foreground="#7C3AED" Margin="22,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Gemini card -->
+                                <Border CornerRadius="8" Padding="14,12" Margin="0,0,0,14" BorderThickness="2">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="BorderBrush" Value="#C4B5FD"/>
+                                            <Setter Property="Background" Value="White"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SmtpConfig.AiProvider}" Value="Gemini">
+                                                    <Setter Property="BorderBrush" Value="#7C3AED"/>
+                                                    <Setter Property="Background" Value="#F5F3FF"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                            <RadioButton GroupName="AiProvider" Margin="0,0,8,0" VerticalAlignment="Center"
+                                                         IsChecked="{Binding SmtpConfig.AiProvider,
+                                                             Converter={StaticResource EqStrConverter},
+                                                             ConverterParameter=Gemini}"/>
+                                            <TextBlock Text="Gemini 2.0 Flash" FontWeight="Bold"
+                                                       FontSize="13" Foreground="#4C1D95" VerticalAlignment="Center"/>
+                                            <Border Background="#D97706" CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
+                                                <TextBlock Text="CUOTA LIMITADA" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="aistudio.google.com" FontSize="11" Foreground="#7C3AED" Margin="22,0,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- OpenRouter Key -->
+                                <StackPanel>
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SmtpConfig.AiProvider}" Value="Gemini">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Text="API KEY — OPENROUTER" Style="{StaticResource FieldLabel}" Foreground="#7C3AED"/>
+                                    <TextBox Text="{Binding SmtpConfig.OpenRouterApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38" Margin="0,0,0,8" BorderBrush="#C4B5FD"/>
+                                    <Border Background="#F0FDF4" CornerRadius="7" Padding="10,8">
+                                        <TextBlock FontSize="12" Foreground="#166534" TextWrapping="Wrap">
+                                            🆓 Completamente gratuito. Regístrate en openrouter.ai → Keys → Create Key. Sin tarjeta de crédito.
+                                        </TextBlock>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Gemini Key -->
+                                <StackPanel>
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SmtpConfig.AiProvider}" Value="Gemini">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Text="API KEY — GEMINI" Style="{StaticResource FieldLabel}" Foreground="#7C3AED"/>
+                                    <TextBox Text="{Binding SmtpConfig.GeminiApiKey, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource InputStyle}" Height="38" Margin="0,0,0,8" BorderBrush="#C4B5FD"/>
+                                    <Border Background="#FEF3C7" CornerRadius="7" Padding="10,8">
+                                        <TextBlock FontSize="12" Foreground="#92400E" TextWrapping="Wrap">
+                                            ⚠ El tier gratuito tiene límite de cuota diaria. Obtén la key en aistudio.google.com → Get API Key.
+                                        </TextBlock>
+                                    </Border>
+                                </StackPanel>
+
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+
+            <!-- ─────────────────────────────────────────
+                 OVERLAY: Busy spinner
+            ───────────────────────────────────────── -->
+            <Border Background="#A0000000"
+                    Visibility="{Binding IsBusy, Converter={StaticResource BoolVis}}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border Width="80" Height="80" Background="#1E293B" CornerRadius="16"
+                            HorizontalAlignment="Center" Margin="0,0,0,16">
+                        <TextBlock Text="⏳" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="Procesando…" FontSize="18" FontWeight="SemiBold"
+                               Foreground="White" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="13" Foreground="#CBD5E1"
+                               HorizontalAlignment="Center" Margin="0,6,0,0" MaxWidth="400"
+                               TextWrapping="Wrap" TextAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+        </Grid>
+    </Grid>
+</Window>

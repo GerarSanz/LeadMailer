@@ -1,0 +1,29 @@
+# Visual Studio / .NET
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vscode/
+
+# Build outputs
+publish/
+installer-output/
+
+# NuGet
+*.nupkg
+packages/
+project.lock.json
+project.assets.json
+.nuget/
+
+# Logs
+*.log
+LeadMailer/logs/
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
