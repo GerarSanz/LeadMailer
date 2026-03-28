@@ -11,6 +11,19 @@ namespace LeadMailer.Services;
 /// <summary>Envía correos HTML personalizados por curso.</summary>
 public class EmailService
 {
+    public (string Subject, string HtmlBody, string TextBody) BuildPreview(Lead lead, CourseInfo course, SmtpConfig cfg)
+    {
+        var nombreCursoEmail = CourseNameForEmail(course);
+        var subject = string.IsNullOrWhiteSpace(course.AsuntoEmail)
+            ? $"Información sobre: {nombreCursoEmail}"
+            : course.AsuntoEmail;
+
+        return (
+            Subject: subject,
+            HtmlBody: BuildHtml(lead, course, cfg),
+            TextBody: BuildText(lead, course));
+    }
+
     // ── Envío individual ──────────────────────────────────────────────────────
     public async Task<(bool Success, string? Error)> SendAsync(Lead lead, CourseInfo course, SmtpConfig cfg)
     {

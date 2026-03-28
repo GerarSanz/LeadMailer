@@ -11,7 +11,7 @@ public enum AiProvider { OpenRouter, Gemini }
 /// <summary>
 /// Genera texto de marketing.
 /// - OpenRouter (GRATUITO): meta-llama/llama-3.1-8b-instruct:free  → openrouter.ai
-/// - Gemini (Google AI Studio): gemini-2.0-flash                   → aistudio.google.com
+/// - Gemini (Google AI Studio): gemini-3-flash-preview             → aistudio.google.com
 /// </summary>
 public class AiTextService
 {
@@ -22,6 +22,7 @@ public class AiTextService
     // Modelos Gemini en orden de preferencia (de más nuevo a más antiguo)
     private static readonly string[] GeminiModels =
     [
+        "gemini-3-flash-preview",
         "gemini-2.0-flash",
         "gemini-2.0-flash-lite",
         "gemini-1.5-flash",

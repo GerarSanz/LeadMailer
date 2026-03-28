@@ -30,7 +30,7 @@ public class DataService
             if (File.Exists(DataFile))
             {
                 var json = File.ReadAllText(DataFile);
-                _data = JsonConvert.DeserializeObject<AppData>(json) ?? new AppData();
+                _data = NormalizeData(JsonConvert.DeserializeObject<AppData>(json) ?? new AppData());
             }
         }
         catch (Exception ex)
@@ -51,6 +51,57 @@ public class DataService
         {
             AppLogger.Error("DataService.Save: no se pudo guardar data.json", ex);
         }
+    }
+
+    public void ExportData(string destinationFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(destinationFilePath))
+            throw new ArgumentException("Ruta de exportación no válida.", nameof(destinationFilePath));
+
+        Save();
+        var folder = Path.GetDirectoryName(destinationFilePath);
+        if (!string.IsNullOrWhiteSpace(folder))
+            Directory.CreateDirectory(folder);
+
+        File.Copy(DataFile, destinationFilePath, overwrite: true);
+    }
+
+    public void ImportData(string sourceFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourceFilePath) || !File.Exists(sourceFilePath))
+            throw new FileNotFoundException("No se encontró el archivo de importación.", sourceFilePath);
+
+        var json = File.ReadAllText(sourceFilePath);
+        var imported = JsonConvert.DeserializeObject<AppData>(json)
+            ?? throw new InvalidDataException("El archivo no tiene un formato válido.");
+
+        _data = NormalizeData(imported);
+        Save();
+    }
+
+    public void ExportSmtpConfig(string destinationFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(destinationFilePath))
+            throw new ArgumentException("Ruta de exportación no válida.", nameof(destinationFilePath));
+
+        var folder = Path.GetDirectoryName(destinationFilePath);
+        if (!string.IsNullOrWhiteSpace(folder))
+            Directory.CreateDirectory(folder);
+
+        File.WriteAllText(destinationFilePath, JsonConvert.SerializeObject(_data.SmtpConfig, Formatting.Indented));
+    }
+
+    public void ImportSmtpConfig(string sourceFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourceFilePath) || !File.Exists(sourceFilePath))
+            throw new FileNotFoundException("No se encontró el archivo de configuración.", sourceFilePath);
+
+        var json = File.ReadAllText(sourceFilePath);
+        var imported = JsonConvert.DeserializeObject<SmtpConfig>(json)
+            ?? throw new InvalidDataException("El archivo no tiene un formato de configuración válido.");
+
+        _data.SmtpConfig = imported;
+        Save();
     }
 
     // ── Helpers cursos ────────────────────────────────────────────────────────
@@ -126,6 +177,21 @@ public class DataService
         return _data.SentRecords.Any(r =>
             !string.IsNullOrWhiteSpace(r.LeadKey) &&
             string.Equals(r.LeadKey, key, StringComparison.Ordinal));
+    }
+
+    public bool HasBeenSentForCourse(Lead lead, string? courseRaw)
+    {
+        if (string.IsNullOrWhiteSpace(courseRaw))
+            return false;
+
+        var key = BuildLeadKey(lead);
+        var targetCourse = courseRaw.Trim();
+
+        return _data.SentRecords.Any(r =>
+            r.Success &&
+            !string.IsNullOrWhiteSpace(r.LeadKey) &&
+            string.Equals(r.LeadKey, key, StringComparison.Ordinal) &&
+            string.Equals((r.CursoRaw ?? string.Empty).Trim(), targetCourse, StringComparison.OrdinalIgnoreCase));
     }
 
     public void AddSentRecord(SentRecord record)
@@ -256,5 +322,20 @@ public class DataService
         dst.UrlFichaInscripcion    = src.UrlFichaInscripcion;
         dst.PdfAdjuntoPath         = src.PdfAdjuntoPath;
         dst.InfoAdicional          = src.InfoAdicional;
+    }
+
+    private static AppData NormalizeData(AppData data)
+    {
+        data.SmtpConfig ??= new SmtpConfig();
+        data.SmtpConfig.SendDelayMs = Math.Clamp(data.SmtpConfig.SendDelayMs, 0, 10000);
+        data.SmtpConfig.MaxSendsPerSession = Math.Max(0, data.SmtpConfig.MaxSendsPerSession);
+        data.SmtpConfig.MaxSendsPerDay = Math.Max(0, data.SmtpConfig.MaxSendsPerDay);
+        data.Courses ??= new List<CourseInfo>();
+        data.SentRecords ??= new List<SentRecord>();
+        data.LeadStatusOverrides ??= new Dictionary<string, LeadStatus>();
+        data.LeadLabels ??= new Dictionary<string, LeadLabel>();
+        data.LeadNotes ??= new Dictionary<string, string>();
+        data.LeadNextContacts ??= new Dictionary<string, string>();
+        return data;
     }
 }

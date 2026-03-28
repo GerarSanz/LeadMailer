@@ -30,7 +30,8 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="230"/>
+            <ColumnDefinition Width="220" MinWidth="160" MaxWidth="360"/>
+            <ColumnDefinition Width="6"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -84,6 +85,24 @@
                                     Padding="8,2" Visibility="{Binding PendingCount, Converter={StaticResource NullVis}}">
                                 <TextBlock Text="{Binding PendingCount}" FontSize="11" FontWeight="Bold" Foreground="White"/>
                             </Border>
+                        </Grid>
+                    </Button>
+
+                    <Button Command="{Binding NavigateCommand}" CommandParameter="LegacyCampaigns">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentView}" Value="LegacyCampaigns">
+                                        <Setter Property="Background" Value="#1E3A8A"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Grid Width="180">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="🗂" FontSize="15" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Leads antiguos" FontSize="13" VerticalAlignment="Center"/>
                         </Grid>
                     </Button>
 
@@ -174,7 +193,16 @@
         <!-- ══════════════════════════════════════════════════════════
              CONTENT AREA
         ══════════════════════════════════════════════════════════ -->
-        <Grid Grid.Column="1">
+        <GridSplitter Grid.Column="1"
+                      Width="6"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      Background="#E2E8F0"
+                      ShowsPreview="True"
+                      ResizeBehavior="PreviousAndNext"
+                      ResizeDirection="Columns"/>
+
+        <Grid Grid.Column="2">
 
             <!-- ─────────────────────────────────────────
                  VIEW: LEADS
@@ -251,6 +279,9 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <Button Grid.Column="0" Content="✓  Todos"
@@ -266,69 +297,109 @@
                                     Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
                                     VerticalAlignment="Center" FontSize="12"
                                     ToolTip="Seleccionar leads con seguimiento para hoy"/>
-                            <TextBlock Grid.Column="3" Text="{Binding StatusMessage}"
+                            <Button Grid.Column="3" Content="🧹  Limpiar selección"
+                                    Command="{Binding ClearSelectedLeadsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Quitar solo la selección actual"/>
+                            <Button Grid.Column="4" Content="↩  Deshacer"
+                                    Command="{Binding UndoLastActionCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Deshacer última acción crítica"/>
+                            <Button Grid.Column="5" Content="🧭  Filtros"
+                                    Command="{Binding ToggleLeadsFiltersCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Mostrar u ocultar filtros y resumen"/>
+                            <TextBlock Grid.Column="6" Text="{Binding StatusMessage}"
                                        FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
                                        VerticalAlignment="Center" HorizontalAlignment="Right"
                                        TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                        Margin="10,0,0,0"/>
                         </Grid>
                         <!-- Segunda fila de botones -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="💬  WhatsApp"
+                        <WrapPanel>
+                            <Button Content="💬  WhatsApp"
                                     Command="{Binding SendWhatsAppToSelectedCommand}"
-                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
                                     VerticalAlignment="Center" FontSize="12"
                                     ToolTip="Enviar WhatsApp a seleccionados"/>
-                            <Button Grid.Column="1" Content="⭳  CSV"
+                            <Button Content="⭳  CSV"
                                     Command="{Binding ExportFilteredLeadsCommand}"
-                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
                                     VerticalAlignment="Center" FontSize="12"
                                     ToolTip="Exportar a CSV"/>
-                            <Button Grid.Column="2" Content="↻  Reintentar"
+                            <Button Content="↻  Reintentar"
                                     Command="{Binding RetryFailedCommand}"
-                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
                                     VerticalAlignment="Center" FontSize="12"
                                     ToolTip="Reintentar envíos fallidos"/>
-                            <Button Grid.Column="3"
-                                    Content="🚀  Enviar"
+                            <Button Content="🔎  Prevalidar"
+                                    Command="{Binding PrevalidateLeadsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Validar emails y cursos antes de enviar"/>
+                            <Button Content="👥  Duplicados"
+                                    Command="{Binding SelectDuplicateLeadsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Seleccionar solo leads duplicados"/>
+                            <Button Content="✉  Email inválido"
+                                    Command="{Binding SelectInvalidEmailLeadsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Seleccionar leads con email inválido"/>
+                            <Button Content="✅  Listos"
+                                    Command="{Binding SelectReadyLeadsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Seleccionar solo leads listos para envío"/>
+                            <Button Content="⚠  Incidencias"
+                                    Command="{Binding SelectIssueLeadsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Seleccionar leads con incidencias (duplicado, email inválido o curso sin configurar)"/>
+                            <Button Content="⭳  Incidencias CSV"
+                                    Command="{Binding ExportLeadIssuesCsvCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Exportar incidencias de leads filtrados a CSV"/>
+                            <Button Content="👁  Previsualizar"
+                                    Command="{Binding PreviewSelectedEmailCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Previsualizar email real del primer lead seleccionado"/>
+                            <Button Content="🚀  Enviar"
                                     Command="{Binding SendSelectedCommand}"
                                     Style="{StaticResource BtnSuccess}"
                                     IsEnabled="{Binding IsBusy, Converter={StaticResource InvBoolVis}}"
+                                    Margin="0,0,6,6"
                                     VerticalAlignment="Center" FontSize="12"/>
-                            <TextBlock Grid.Column="4"/>
-                        </Grid>
+                            <Button Content="📋  Copiar emails"
+                                    Command="{Binding CopySelectedEmailsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,0,6"
+                                    VerticalAlignment="Center" FontSize="12"
+                                    ToolTip="Copiar emails seleccionados al portapapeles"/>
+                        </WrapPanel>
                     </StackPanel>
                 </Border>
 
+                <StackPanel DockPanel.Dock="Top"
+                            Visibility="{Binding ShowLeadsFilters, Converter={StaticResource BoolVis}}">
                 <!-- ══ BARRA DE FILTROS ══ -->
                 <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="190"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="140"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="55"/>
-                        </Grid.ColumnDefinitions>
+                    <WrapPanel>
 
                         <!-- Búsqueda libre -->
-                        <StackPanel Grid.Column="0">
+                        <StackPanel Width="320" Margin="0,0,8,8">
                             <TextBlock Text="BUSCAR" Style="{StaticResource FieldLabel}"/>
                             <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource InputStyle}" Height="34"/>
                         </StackPanel>
 
                         <!-- Filtro por curso -->
-                        <StackPanel Grid.Column="2">
+                        <StackPanel Width="190" Margin="0,0,8,8">
                             <TextBlock Text="CURSO" Style="{StaticResource FieldLabel}"/>
                             <ComboBox ItemsSource="{Binding CourseFilterItems}"
                                       SelectedItem="{Binding SelectedCourseFilter}"
@@ -337,7 +408,7 @@
                         </StackPanel>
 
                         <!-- Filtro por estado -->
-                        <StackPanel Grid.Column="4">
+                        <StackPanel Width="150" Margin="0,0,8,8">
                             <TextBlock Text="ESTADO" Style="{StaticResource FieldLabel}"/>
                             <ComboBox ItemsSource="{Binding StatusFilterOptions}"
                                       SelectedItem="{Binding SelectedStatusFilter}"
@@ -345,20 +416,75 @@
                         </StackPanel>
 
                         <!-- Contador de resultados -->
-                        <StackPanel Grid.Column="6" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <StackPanel Width="80" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,8">
                             <TextBlock Text="{Binding FilteredCount}" FontSize="20" FontWeight="Bold"
                                        Foreground="{StaticResource PrimaryBrush}" HorizontalAlignment="Center"/>
                             <TextBlock Text="resultados" FontSize="9"
                                        Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
                         </StackPanel>
-                    </Grid>
+                    </WrapPanel>
                 </Border>
 
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="170"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="#FFF7ED" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Duplicados" FontSize="10" Foreground="#9A3412"/>
+                                <TextBlock Text="{Binding LeadIssuesDuplicateCount}" FontSize="24" FontWeight="Bold" Foreground="#9A3412"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="#FEF2F2" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Email inválido" FontSize="10" Foreground="#991B1B"/>
+                                <TextBlock Text="{Binding LeadIssuesInvalidEmailCount}" FontSize="24" FontWeight="Bold" Foreground="#991B1B"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="4" Background="#FEF3C7" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Curso sin configurar" FontSize="10" Foreground="#92400E"/>
+                                <TextBlock Text="{Binding LeadIssuesUnconfiguredCourseCount}" FontSize="24" FontWeight="Bold" Foreground="#92400E"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="6" Background="#EFF6FF" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Total incidencias (filtro actual)" FontSize="10" Foreground="#1E40AF"/>
+                                <TextBlock Text="{Binding LeadIssuesTotalCount}" FontSize="24" FontWeight="Bold" Foreground="#1E40AF"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+                </StackPanel>
+
                 <!-- DataGrid -->
-                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Padding="0">
+                <Border Style="{StaticResource CardStyle}" Padding="0">
                     <DataGrid ItemsSource="{Binding FilteredLeads}"
                               CanUserResizeColumns="True"
                               CanUserSortColumns="True">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDuplicate}" Value="True">
+                                        <Setter Property="Background" Value="#FFF7ED"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsInvalidEmail}" Value="True">
+                                        <Setter Property="Background" Value="#FEF2F2"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
 
                             <!-- Checkbox -->
@@ -418,6 +544,8 @@
                             <DataGridTextColumn Header="PLATAFORMA" Binding="{Binding Plataforma}"       Width="90"/>
                             <DataGridTextColumn Header="PROVINCIA"  Binding="{Binding Provincia}"        Width="100"/>
                             <DataGridTextColumn Header="SIT. LAB."  Binding="{Binding SituacionLaboral}" Width="120"/>
+                            <DataGridCheckBoxColumn Header="DUPL." Binding="{Binding IsDuplicate}" Width="70"/>
+                            <DataGridCheckBoxColumn Header="EMAIL INV." Binding="{Binding IsInvalidEmail}" Width="85"/>
 
                             <DataGridTemplateColumn Header="NOTAS SEGUIMIENTO" Width="220">
                                 <DataGridTemplateColumn.CellTemplate>
@@ -453,6 +581,13 @@
                                                     Style="{StaticResource BtnSecondary}"
                                                     FontSize="11" Padding="5,2" Margin="0,0,3,0"
                                                     ToolTip="Enviar WhatsApp"/>
+                                            <Button Content="👁"
+                                                    Command="{Binding DataContext.PreviewLeadEmailCommand,
+                                                              RelativeSource={RelativeSource AncestorType=Window}}"
+                                                    CommandParameter="{Binding}"
+                                                    Style="{StaticResource BtnSecondary}"
+                                                    FontSize="11" Padding="5,2" Margin="0,0,3,0"
+                                                    ToolTip="Previsualizar email"/>
                                             <Button Content="↻"
                                                     Command="{Binding DataContext.ResendLeadCommand,
                                                               RelativeSource={RelativeSource AncestorType=Window}}"
@@ -480,6 +615,272 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </DockPanel>
+
+            <!-- ─────────────────────────────────────────
+                 VIEW: LEGACY CAMPAIGNS
+            ───────────────────────────────────────── -->
+            <DockPanel Margin="28">
+                <DockPanel.Style>
+                    <Style TargetType="DockPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentView}" Value="LegacyCampaigns">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DockPanel.Style>
+
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
+                    <TextBlock Text="Campañas sobre leads antiguos" FontSize="26" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Carga un Excel histórico, filtra y lanza campañas por email o WhatsApp usando un curso ya configurado"
+                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12"
+                        Visibility="{Binding ShowLegacyFilters, Converter={StaticResource BoolVis}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0">
+                            <TextBlock Text="EXCEL HISTÓRICO" Style="{StaticResource FieldLabel}" FontSize="11"/>
+                            <TextBlock Text="{Binding LegacyExcelFilePath, FallbackValue='Ningún archivo seleccionado'}"
+                                       FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="📂  Examinar"
+                                Command="{Binding BrowseLegacyExcelCommand}"
+                                Style="{StaticResource BtnSecondary}" Margin="0,0,6,0"
+                                FontSize="12" Padding="10,6"/>
+                        <Button Grid.Column="2" Content="🔄  Cargar"
+                                Command="{Binding LoadLegacyLeadsCommand}"
+                                Style="{StaticResource BtnPrimary}"
+                                FontSize="12" Padding="10,6"/>
+                    </Grid>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12"
+                        Visibility="{Binding ShowLegacyFilters, Converter={StaticResource BoolVis}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="320"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="CURSO A ENVIAR EN LA CAMPAÑA" Style="{StaticResource FieldLabel}"/>
+                            <TextBlock Text="Selecciona un curso ya configurado. Ese contenido se usará para todos los leads seleccionados."
+                                       FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,6"/>
+                            <ComboBox ItemsSource="{Binding Courses}"
+                                      SelectedItem="{Binding LegacySelectedCampaignCourse}"
+                                      DisplayMemberPath="NombreCorto"
+                                      Height="34" VerticalContentAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+
+                        <Border Grid.Column="2" Background="#EFF6FF" CornerRadius="8" Padding="12,10">
+                            <StackPanel>
+                                <TextBlock Text="Seleccionados" FontSize="10" Foreground="#64748B" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding LegacySelectedCount}" FontSize="28" FontWeight="Bold" Foreground="#1D4ED8" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding LegacyFilteredCount, StringFormat=Filtrados: {0}}" FontSize="11" Foreground="#1E40AF" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <WrapPanel>
+
+                        <StackPanel Width="320" Margin="0,0,8,8">
+                            <TextBlock Text="BUSCAR" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Text="{Binding LegacySearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource InputStyle}" Height="34"
+                                     ToolTip="Busca por nombre, email, teléfono, provincia, situación laboral o curso de origen"/>
+                        </StackPanel>
+
+                        <StackPanel Width="220" Margin="0,0,8,8">
+                            <TextBlock Text="CURSO ORIGEN" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding LegacyOriginCourseFilterOptions}"
+                                      SelectedItem="{Binding LegacyOriginCourseFilter}"
+                                      Height="34" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Width="180" Margin="0,0,8,8">
+                            <TextBlock Text="PROVINCIA" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding LegacyProvinceFilterOptions}"
+                                      SelectedItem="{Binding LegacyProvinceFilter}"
+                                      Height="34" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Width="220" Margin="0,0,8,8">
+                            <TextBlock Text="SITUACIÓN LABORAL" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding LegacyEmploymentFilterOptions}"
+                                      SelectedItem="{Binding LegacyEmploymentFilter}"
+                                      Height="34" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Width="170" VerticalAlignment="Bottom" Margin="0,0,8,8">
+                            <CheckBox Content="Solo acepta publicidad"
+                                      IsChecked="{Binding LegacyOnlyWithPublicidad}"
+                                      FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <StackPanel Width="140" VerticalAlignment="Bottom" Margin="0,0,8,8">
+                            <CheckBox Content="Solo duplicados"
+                                      IsChecked="{Binding LegacyOnlyDuplicates}"
+                                      FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <StackPanel Width="150" VerticalAlignment="Bottom" Margin="0,0,8,8">
+                            <CheckBox Content="Solo email inválido"
+                                      IsChecked="{Binding LegacyOnlyInvalidEmail}"
+                                      FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <StackPanel Width="130" VerticalAlignment="Bottom" Margin="0,0,0,8">
+                            <CheckBox Content="Solo incidencias"
+                                      IsChecked="{Binding LegacyOnlyIssues}"
+                                      FontSize="12" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                    </WrapPanel>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <WrapPanel Margin="0,0,0,6">
+                            <Button Content="✓  Todos" Command="{Binding SelectAllLegacyCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="✗  Ninguno" Command="{Binding DeselectAllLegacyCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="🧹  Limpiar selección" Command="{Binding ClearSelectedLegacyCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="👥  Duplicados" Command="{Binding SelectDuplicateLegacyCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="✉  Email inválido" Command="{Binding SelectInvalidEmailLegacyCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="✅  Listos" Command="{Binding SelectReadyLegacyCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="⚠  Incidencias" Command="{Binding SelectIssueLegacyCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="⭳  Incidencias CSV" Command="{Binding ExportLegacyIssuesCsvCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="🔎  Prevalidar" Command="{Binding PrevalidateLegacyLeadsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"/>
+                            <Button Content="🚀  Enviar email" Command="{Binding SendLegacySelectedEmailsCommand}"
+                                    Style="{StaticResource BtnSuccess}" Margin="0,0,6,6" FontSize="12"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvBoolVis}}"/>
+                            <Button Content="💬  WhatsApp" Command="{Binding SendLegacyWhatsAppToSelectedCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvBoolVis}}"/>
+                            <Button Content="📋  Copiar emails" Command="{Binding CopySelectedLegacyEmailsCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,6,6" FontSize="12"
+                                    ToolTip="Copiar emails seleccionados de leads antiguos"/>
+                            <Button Content="🧭  Filtros" Command="{Binding ToggleLegacyFiltersCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,0,6" FontSize="12"
+                                    ToolTip="Mostrar u ocultar filtros y resumen"/>
+                        </WrapPanel>
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12"
+                        Visibility="{Binding ShowLegacyFilters, Converter={StaticResource BoolVis}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="190"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="#FFF7ED" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Duplicados" FontSize="10" Foreground="#9A3412"/>
+                                <TextBlock Text="{Binding LegacyIssuesDuplicateCount}" FontSize="24" FontWeight="Bold" Foreground="#9A3412"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="#FEF2F2" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Email inválido" FontSize="10" Foreground="#991B1B"/>
+                                <TextBlock Text="{Binding LegacyIssuesInvalidEmailCount}" FontSize="24" FontWeight="Bold" Foreground="#991B1B"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="4" Background="#FEF3C7" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Incidencia curso campaña" FontSize="10" Foreground="#92400E"/>
+                                <TextBlock Text="{Binding LegacyIssuesCampaignCourseCount}" FontSize="24" FontWeight="Bold" Foreground="#92400E"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="6" Background="#EFF6FF" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Total incidencias (filtro actual)" FontSize="10" Foreground="#1E40AF"/>
+                                <TextBlock Text="{Binding LegacyIssuesTotalCount}" FontSize="24" FontWeight="Bold" Foreground="#1E40AF"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource CardStyle}" Padding="0">
+                    <DataGrid ItemsSource="{Binding FilteredLegacyLeads}" CanUserResizeColumns="True" CanUserSortColumns="True">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDuplicate}" Value="True">
+                                        <Setter Property="Background" Value="#FFF7ED"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsInvalidEmail}" Value="True">
+                                        <Setter Property="Background" Value="#FEF2F2"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="" Width="42" CanUserResize="False" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                  IsEnabled="{Binding CanSelect}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Header="ESTADO" Width="120" CanUserResize="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="5" Padding="7,3" HorizontalAlignment="Left"
+                                                Background="{Binding Status, Converter={StaticResource LeadStatusBrush}}">
+                                            <TextBlock Text="{Binding EstadoTexto}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Header="NOMBRE" Binding="{Binding Nombre}" Width="170"/>
+                            <DataGridTextColumn Header="EMAIL" Binding="{Binding Email}" Width="220"/>
+                            <DataGridTextColumn Header="CURSO AL QUE SE APUNTÓ" Binding="{Binding Lead.Curso}" Width="260"/>
+                            <DataGridTextColumn Header="TELÉFONO" Binding="{Binding Telefono}" Width="130"/>
+                            <DataGridTextColumn Header="PROVINCIA" Binding="{Binding Provincia}" Width="120"/>
+                            <DataGridTextColumn Header="SIT. LAB." Binding="{Binding SituacionLaboral}" Width="130"/>
+                            <DataGridCheckBoxColumn Header="DUPL." Binding="{Binding IsDuplicate}" Width="70"/>
+                            <DataGridCheckBoxColumn Header="EMAIL INV." Binding="{Binding IsInvalidEmail}" Width="85"/>
+                            <DataGridCheckBoxColumn Header="ACEPTA PUB." Binding="{Binding Lead.AceptaPublicidad}" Width="95"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Border>
@@ -519,9 +920,95 @@
                 <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
                     <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="#DCFCE7" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Correctos" FontSize="10" Foreground="#166534"/>
+                                <TextBlock Text="{Binding HistorySuccessCount}" FontSize="24" FontWeight="Bold" Foreground="#166534"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="#FEE2E2" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Fallidos" FontSize="10" Foreground="#991B1B"/>
+                                <TextBlock Text="{Binding HistoryFailedCount}" FontSize="24" FontWeight="Bold" Foreground="#991B1B"/>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="TOP CURSOS (últimos envíos registrados)" Style="{StaticResource FieldLabel}"/>
+                            <ItemsControl ItemsSource="{Binding HistoryCourseMetrics}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Curso}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Text="{Binding Total, StringFormat=Total: {0}}"/>
+                                            <TextBlock Grid.Column="2" Margin="10,0,0,0" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                       Text="{Binding SuccessRate, StringFormat=Éxito: {0:F0}%}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Background="#EFF6FF" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Hoy" FontSize="10" Foreground="#1E40AF"/>
+                                <TextBlock Text="{Binding HistoryTodayCount}" FontSize="24" FontWeight="Bold" Foreground="#1E40AF"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="#EEF2FF" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Últimos 7 días" FontSize="10" Foreground="#3730A3"/>
+                                <TextBlock Text="{Binding HistoryLast7DaysCount}" FontSize="24" FontWeight="Bold" Foreground="#3730A3"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="4" Background="#F5F3FF" CornerRadius="8" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock Text="Últimos 30 días" FontSize="10" Foreground="#6B21A8"/>
+                                <TextBlock Text="{Binding HistoryLast30DaysCount}" FontSize="24" FontWeight="Bold" Foreground="#6B21A8"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="14"/>
                             <ColumnDefinition Width="170"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="140"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
@@ -535,6 +1022,16 @@
                             <ComboBox ItemsSource="{Binding HistoryStatusFilterOptions}"
                                       SelectedItem="{Binding HistoryStatusFilter}"
                                       Height="34" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="DESDE" Style="{StaticResource FieldLabel}"/>
+                            <DatePicker SelectedDate="{Binding HistoryFromDate}" Height="34"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="6">
+                            <TextBlock Text="HASTA" Style="{StaticResource FieldLabel}"/>
+                            <DatePicker SelectedDate="{Binding HistoryToDate}" Height="34"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -599,12 +1096,24 @@
                     </Style>
                 </DockPanel.Style>
 
-                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,20">
-                    <TextBlock Text="Cursos" FontSize="26" FontWeight="Bold"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Configura la información de cada curso para los correos automáticos"
-                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
-                </StackPanel>
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Cursos" FontSize="26" FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Configura la información de cada curso para los correos automáticos"
+                                   FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="🧹  Borrar sin configurar"
+                            Command="{Binding DeleteUnconfiguredCoursesCommand}"
+                            Style="{StaticResource BtnSecondary}"
+                            VerticalAlignment="Center"
+                            Margin="12,0,0,0"
+                            ToolTip="Eliminar de una vez los cursos sin contenido de marketing"/>
+                </Grid>
 
                 <!-- Empty state -->
                 <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}"
@@ -1055,6 +1564,37 @@
                                     <TextBox Text="{Binding SmtpConfig.SendDelayMs, UpdateSourceTrigger=PropertyChanged}"
                                              Style="{StaticResource InputStyle}" Width="120" Height="34"/>
                                 </StackPanel>
+
+                                <CheckBox Content="Confirmar antes de envío masivo"
+                                          IsChecked="{Binding SmtpConfig.ConfirmMassSend}"
+                                          FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,10,0,0"/>
+
+                                <CheckBox Content="Programar envíos"
+                                          IsChecked="{Binding SmtpConfig.EnableScheduledSend}"
+                                          FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,10,0,0"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="FECHA PROGRAMADA" Style="{StaticResource FieldLabel}" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <DatePicker SelectedDate="{Binding SmtpConfig.ScheduledSendAt}" Height="34" Width="180"/>
+                                </StackPanel>
+
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="LÍMITE POR SESIÓN (0 = sin límite)" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding SmtpConfig.MaxSendsPerSession, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="34"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="LÍMITE POR DÍA (0 = sin límite)" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox Text="{Binding SmtpConfig.MaxSendsPerDay, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="34"/>
+                                    </StackPanel>
+                                </Grid>
                             </StackPanel>
                         </Border>
 
@@ -1102,6 +1642,24 @@
                             </StackPanel>
                         </Border>
 
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="PLANTILLAS POR ETIQUETA (SE AÑADEN AL INICIO DEL EMAIL)" Style="{StaticResource FieldLabel}" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="INTERESADO" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding SmtpConfig.LabelTemplateInteresado, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource TextAreaStyle}" Height="70" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="CONFIRMADO" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding SmtpConfig.LabelTemplateConfirmado, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource TextAreaStyle}" Height="70" Margin="0,0,0,8"/>
+
+                                <TextBlock Text="DESCARTADO" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding SmtpConfig.LabelTemplateDescartado, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource TextAreaStyle}" Height="70"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Buttons + result -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                             <Button Content="💾  Guardar configuración" Command="{Binding SaveSmtpCommand}"
@@ -1110,6 +1668,25 @@
                                     Style="{StaticResource BtnSecondary}"
                                     IsEnabled="{Binding IsBusy, Converter={StaticResource InvBoolVis}}"/>
                         </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Content="⚙  Exportar config" Command="{Binding ExportSmtpConfigCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,10,0"/>
+                            <Button Content="⚙  Importar config" Command="{Binding ImportSmtpConfigCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,10,0"/>
+                            <Button Content="⭳  Exportar datos" Command="{Binding ExportAppDataCommand}"
+                                    Style="{StaticResource BtnSecondary}" Margin="0,0,10,0"/>
+                            <Button Content="⭱  Importar datos" Command="{Binding ImportAppDataCommand}"
+                                    Style="{StaticResource BtnSecondary}"/>
+                        </StackPanel>
+
+                        <Border Background="#F8FAFC" CornerRadius="8" Padding="12,10" Margin="0,0,0,14"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                            <TextBlock FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap">
+                                ⚙ Exportar/Importar config: solo parámetros de Configuración (SMTP, IA, WhatsApp, etc.).
+                                ⭳/⭱ Exportar/Importar datos: copia completa (configuración + cursos + historial + estado comercial).
+                            </TextBlock>
+                        </Border>
 
                         <Border CornerRadius="8" Padding="14,10" Margin="0,0,0,14"
                                 Visibility="{Binding SmtpTestResult, Converter={StaticResource EmptyStrVis}}">
@@ -1228,7 +1805,7 @@
                                                          IsChecked="{Binding SmtpConfig.AiProvider,
                                                              Converter={StaticResource EqStrConverter},
                                                              ConverterParameter=Gemini}"/>
-                                            <TextBlock Text="Gemini 2.0 Flash" FontWeight="Bold"
+                                            <TextBlock Text="Gemini 3 Flash Preview" FontWeight="Bold"
                                                        FontSize="13" Foreground="#4C1D95" VerticalAlignment="Center"/>
                                             <Border Background="#D97706" CornerRadius="4" Padding="6,2" Margin="8,0,0,0">
                                                 <TextBlock Text="CUOTA LIMITADA" FontSize="10" FontWeight="Bold" Foreground="White"/>

@@ -1,4 +1,6 @@
 using System.IO;
+using System.Globalization;
+using System.Text;
 using LeadMailer.Models;
 using OfficeOpenXml;
 
@@ -27,23 +29,136 @@ public class ExcelService
             throw new FileNotFoundException($"No se encontró el archivo: {filePath}");
 
         using var package = new ExcelPackage(new FileInfo(filePath));
-        var ws = package.Workbook.Worksheets[0];
+
+        static string NormalizeHeader(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+
+            var formD = value.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+            var chars = formD.Where(ch => CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark);
+            var noAccents = new string(chars.ToArray()).Normalize(NormalizationForm.FormC);
+
+            return new string(noAccents.Where(ch => char.IsLetterOrDigit(ch)).ToArray());
+        }
+
+        static int ScoreWorksheet(ExcelWorksheet sheet)
+        {
+            if (sheet.Dimension == null) return int.MinValue;
+
+            var maxRow = Math.Min(sheet.Dimension.End.Row, 10);
+            var maxCol = Math.Min(sheet.Dimension.End.Column, 80);
+            var score = 0;
+
+            for (int row = 1; row <= maxRow; row++)
+            {
+                for (int c = 1; c <= maxCol; c++)
+                {
+                    var h = NormalizeHeader(sheet.Cells[row, c].Text);
+                    if (string.IsNullOrWhiteSpace(h)) continue;
+
+                    if (h == "curso") score += 15;
+                    else if (h.Contains("curso")) score += 8;
+
+                    if (h.Contains("email") || h.Contains("correo")) score += 3;
+                    if (h.Contains("nombre")) score += 2;
+                    if (h.Contains("telefono")) score += 1;
+                }
+            }
+
+            return score;
+        }
+
+        var ws = package.Workbook.Worksheets
+            .Where(s => s?.Dimension != null)
+            .OrderByDescending(ScoreWorksheet)
+            .FirstOrDefault();
+
         if (ws?.Dimension == null) return leads;
+
+        int GuessHeaderRow()
+        {
+            var maxRow = Math.Min(ws.Dimension.End.Row, 10);
+            var probes = new[] { "curso", "cursos", "formacion", "accion", "email", "correo", "nombre", "telefono", "provincia", "plataforma" };
+
+            var bestRow = 1;
+            var bestScore = -1;
+            var bestNonEmpty = -1;
+
+            for (int row = 1; row <= maxRow; row++)
+            {
+                var score = 0;
+                var nonEmpty = 0;
+                var hasCursoHeader = false;
+                for (int c = 1; c <= ws.Dimension.End.Column; c++)
+                {
+                    var normalized = NormalizeHeader(ws.Cells[row, c].Text);
+                    if (string.IsNullOrWhiteSpace(normalized)) continue;
+                    nonEmpty++;
+                    if (normalized == "curso" || normalized.Contains("curso"))
+                        hasCursoHeader = true;
+                    if (probes.Any(p => normalized.Contains(p))) score++;
+                }
+
+                if (hasCursoHeader)
+                    score += 5;
+
+                if (score > bestScore || (score == bestScore && nonEmpty > bestNonEmpty))
+                {
+                    bestScore = score;
+                    bestNonEmpty = nonEmpty;
+                    bestRow = row;
+                }
+            }
+
+            return bestRow;
+        }
+
+        var headerRow = GuessHeaderRow();
 
         // ── Mapear columnas por cabecera ──────────────────────────────────────
         var colMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int c = 1; c <= ws.Dimension.End.Column; c++)
-            colMap[ws.Cells[1, c].Text.Trim()] = c;
+        {
+            var raw = ws.Cells[headerRow, c].Text.Trim();
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+
+            var normalized = NormalizeHeader(raw);
+            if (!colMap.ContainsKey(raw)) colMap[raw] = c;
+            if (!string.IsNullOrWhiteSpace(normalized) && !colMap.ContainsKey(normalized)) colMap[normalized] = c;
+        }
 
         int Col(params string[] names)
         {
             foreach (var n in names)
+            {
                 if (colMap.TryGetValue(n, out var col)) return col;
+
+                var normalized = NormalizeHeader(n);
+                if (!string.IsNullOrWhiteSpace(normalized) && colMap.TryGetValue(normalized, out col))
+                    return col;
+            }
+            return -1;
+        }
+
+        int ColContains(string fragment)
+        {
+            foreach (var kv in colMap)
+                if (kv.Key.Contains(fragment, StringComparison.OrdinalIgnoreCase)
+                    || kv.Key.Contains(NormalizeHeader(fragment), StringComparison.OrdinalIgnoreCase))
+                    return kv.Value;
             return -1;
         }
 
         int cFecha    = Col("  ", "Fecha", "Timestamp");
-        int cCurso    = Col("Curso");
+        int cCurso    = Col(
+            "curso", "cursos", "cursointeres", "cursointeresado", "cursoalqueseapunto",
+            "formacion", "accionformativa", "accinformativa", "accformativa");
+        if (cCurso < 0)
+            cCurso = ColContains("curso");
+        if (cCurso < 0)
+            cCurso = ColContains("formacion");
+        if (cCurso < 0)
+            cCurso = ColContains("accion");
         int cPlat     = Col("Plataforma");
         int cSit      = Col("Situación Laboral", "Situacion Laboral");
         int cNivel    = Col("Sector Laboral / Nivel Estudios", "Nivel Estudios");
@@ -78,7 +193,7 @@ public class ExcelService
         }
 
         // ── Leer filas ────────────────────────────────────────────────────────
-        for (int row = 2; row <= ws.Dimension.End.Row; row++)
+        for (int row = headerRow + 1; row <= ws.Dimension.End.Row; row++)
         {
             var email = Cell(row, cEmail);
             var curso = Cell(row, cCurso);

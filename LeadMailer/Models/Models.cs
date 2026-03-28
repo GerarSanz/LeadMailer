@@ -33,6 +33,8 @@ public partial class LeadRow : ObservableObject
 
     [ObservableProperty] private bool _isSelected;
     [ObservableProperty] private bool _alreadySent;
+    [ObservableProperty] private bool _isDuplicate;
+    [ObservableProperty] private bool _isInvalidEmail;
     [ObservableProperty] private LeadLabel _label = LeadLabel.Ninguna;
     [ObservableProperty] private string _note = "";
     [ObservableProperty] private string _nextContact = "";
@@ -150,6 +152,16 @@ public class SmtpConfig
     public string AiProvider       { get; set; } = "OpenRouter";
     public int    SendDelayMs      { get; set; } = 500;
     public string WhatsAppNumber   { get; set; } = "";
+
+    public bool   ConfirmMassSend           { get; set; } = true;
+    public bool   EnableScheduledSend       { get; set; }
+    public DateTime? ScheduledSendAt        { get; set; }
+    public int    MaxSendsPerSession        { get; set; } = 0;
+    public int    MaxSendsPerDay            { get; set; } = 0;
+
+    public string LabelTemplateInteresado   { get; set; } = "";
+    public string LabelTemplateConfirmado   { get; set; } = "";
+    public string LabelTemplateDescartado   { get; set; } = "";
 }
 
 // ─── Raíz de persistencia JSON ───────────────────────────────────────────────
