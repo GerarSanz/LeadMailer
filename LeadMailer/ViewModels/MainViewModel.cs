@@ -1070,6 +1070,7 @@ namespace LeadMailer.ViewModels
             _data.SmtpConfig.LabelTemplateInteresado = SmtpConfig.LabelTemplateInteresado;
             _data.SmtpConfig.LabelTemplateConfirmado = SmtpConfig.LabelTemplateConfirmado;
             _data.SmtpConfig.LabelTemplateDescartado = SmtpConfig.LabelTemplateDescartado;
+            _data.SmtpConfig.EmailFooter = SmtpConfig.EmailFooter;
             _data.Save();
             SmtpTestResult = "✓  Configuración guardada.";
         }
@@ -1604,8 +1605,8 @@ namespace LeadMailer.ViewModels
                 : CourseFilterItems.FirstOrDefault(c => c.Id == previousId) ?? _todosCursos;
 
             LegacySelectedCampaignCourse = string.IsNullOrWhiteSpace(previousLegacyCourseId)
-                ? Courses.FirstOrDefault()
-                : Courses.FirstOrDefault(c => c.Id == previousLegacyCourseId) ?? Courses.FirstOrDefault();
+                ? null
+                : Courses.FirstOrDefault(c => c.Id == previousLegacyCourseId);
         }
 
         private void RefreshLegacyFilterOptions()

@@ -162,6 +162,7 @@ public class SmtpConfig
     public string LabelTemplateInteresado   { get; set; } = "";
     public string LabelTemplateConfirmado   { get; set; } = "";
     public string LabelTemplateDescartado   { get; set; } = "";
+    public string EmailFooter               { get; set; } = "";
 }
 
 // ─── Raíz de persistencia JSON ───────────────────────────────────────────────

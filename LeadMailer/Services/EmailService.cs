@@ -21,7 +21,7 @@ public class EmailService
         return (
             Subject: subject,
             HtmlBody: BuildHtml(lead, course, cfg),
-            TextBody: BuildText(lead, course));
+            TextBody: BuildText(lead, course, cfg));
     }
 
     // ── Envío individual ──────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ public class EmailService
             var builder = new BodyBuilder
             {
                 HtmlBody  = BuildHtml(lead, course, cfg),
-                TextBody  = BuildText(lead, course)
+                TextBody  = BuildText(lead, course, cfg)
             };
 
             if (!string.IsNullOrWhiteSpace(course.PdfAdjuntoPath))
@@ -150,6 +150,12 @@ public class EmailService
             }
         }
 
+        var footerHtml = !string.IsNullOrWhiteSpace(cfg.EmailFooter)
+            ? $@"<div style='margin-top:14px;font-size:11px;color:#6B7280;line-height:1.6'>
+                 {Enc(cfg.EmailFooter).Replace("\n", "<br/>")}
+               </div>"
+            : "";
+
         return $@"<!DOCTYPE html>
 <html lang='es'><head><meta charset='UTF-8'></head>
 <body style='margin:0;padding:0;background:#F3F4F6;font-family:Segoe UI,Arial,sans-serif'>
@@ -182,9 +188,7 @@ public class EmailService
             ¿Tienes preguntas? Contacta directamente con nosotros
           </p>
           {whatsappButton}
-          <p style='margin:12px 0 0;font-size:11px;color:#9CA3AF'>
-            Correo generado automáticamente. Por favor no respondas directamente a este mensaje.
-          </p>
+          {footerHtml}
         </td></tr>
       </table>
     </td></tr>
@@ -238,7 +242,7 @@ public class EmailService
     }
 
     // ── Versión texto plano ───────────────────────────────────────────────────
-    private static string BuildText(Lead lead, CourseInfo c)
+    private static string BuildText(Lead lead, CourseInfo c, SmtpConfig cfg)
     {
         var sb     = new System.Text.StringBuilder();
         var nombre = string.IsNullOrWhiteSpace(lead.Nombre) ? "Estimado/a" : lead.Nombre;
@@ -258,6 +262,11 @@ public class EmailService
         if (!string.IsNullOrWhiteSpace(c.DocumentacionNecesaria)) sb.AppendLine($"Documentación:   {c.DocumentacionNecesaria}");
         if (!string.IsNullOrWhiteSpace(c.UrlFichaInscripcion)) sb.AppendLine($"Inscripción:     {c.UrlFichaInscripcion}");
         if (!string.IsNullOrWhiteSpace(c.InfoAdicional))      sb.AppendLine($"Más información: {c.InfoAdicional}");
+        if (!string.IsNullOrWhiteSpace(cfg.EmailFooter))
+        {
+            sb.AppendLine();
+            sb.AppendLine(cfg.EmailFooter.Trim());
+        }
         return sb.ToString();
     }
 

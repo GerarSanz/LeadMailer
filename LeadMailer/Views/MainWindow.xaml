@@ -540,6 +540,7 @@
 
                             <DataGridTextColumn Header="NOMBRE"     Binding="{Binding Nombre}"           Width="160"/>
                             <DataGridTextColumn Header="EMAIL"      Binding="{Binding Email}"            Width="200"/>
+                            <DataGridTextColumn Header="TELÉFONO"   Binding="{Binding Telefono}"         Width="130"/>
                             <DataGridTextColumn Header="CURSO"      Binding="{Binding NombreCurso}"      Width="*"/>
                             <DataGridTextColumn Header="PLATAFORMA" Binding="{Binding Plataforma}"       Width="90"/>
                             <DataGridTextColumn Header="PROVINCIA"  Binding="{Binding Provincia}"        Width="100"/>
@@ -1657,6 +1658,15 @@
                                 <TextBlock Text="DESCARTADO" Style="{StaticResource FieldLabel}"/>
                                 <TextBox Text="{Binding SmtpConfig.LabelTemplateDescartado, UpdateSourceTrigger=PropertyChanged}"
                                          Style="{StaticResource TextAreaStyle}" Height="70"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="PIE DE EMAIL (SE AÑADE AL FINAL)" Style="{StaticResource FieldLabel}" Margin="0,0,0,8"/>
+                                <TextBox Text="{Binding SmtpConfig.EmailFooter, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource TextAreaStyle}" Height="90"
+                                         ToolTip="Ejemplo: datos de la empresa, protección de datos, contacto, etc."/>
                             </StackPanel>
                         </Border>
 
