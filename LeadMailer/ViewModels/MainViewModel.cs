@@ -68,6 +68,26 @@ namespace LeadMailer.ViewModels
         [ObservableProperty] private int _historyLast30DaysCount;
         [ObservableProperty] private ObservableCollection<CourseHistoryMetric> _historyCourseMetrics = new();
         [ObservableProperty] private string _whatsappMessage = "";
+        [ObservableProperty] private string _socialMessage = "";
+        [ObservableProperty] private string _courseStartMessage = "";
+
+        [ObservableProperty] private ObservableCollection<StudentEntry> _students = new();
+        [ObservableProperty] private string _studentSearchText = "";
+        [ObservableProperty] private ObservableCollection<string> _studentCourseFilterOptions = new();
+        [ObservableProperty] private string _selectedStudentCourseFilter = "Todos";
+        [ObservableProperty] private string _newStudentNombre = "";
+        [ObservableProperty] private string _newStudentEmail = "";
+        [ObservableProperty] private string _newStudentTelefono = "";
+        [ObservableProperty] private string _newStudentCurso = "";
+        [ObservableProperty] private string _newStudentPlataforma = "";
+        [ObservableProperty] private string _newStudentSituacionLaboral = "";
+        [ObservableProperty] private string _newStudentNivelEstudios = "";
+        [ObservableProperty] private string _newStudentProvincia = "";
+        [ObservableProperty] private string _newStudentObservaciones = "";
+        [ObservableProperty] private string _newStudentContacto = "";
+        [ObservableProperty] private string _newStudentInscripcion = "";
+        [ObservableProperty] private string _newStudentFechaRegistro = "";
+        [ObservableProperty] private bool _newStudentAceptaPublicidad = true;
 
         [ObservableProperty] private ObservableCollection<LeadRow> _legacyLeads = new();
         [ObservableProperty] private string _legacyExcelFilePath = "";
@@ -103,6 +123,194 @@ namespace LeadMailer.ViewModels
             }
         }
 
+        [RelayCommand]
+        private void AddStudent()
+        {
+            if (string.IsNullOrWhiteSpace(NewStudentNombre) || string.IsNullOrWhiteSpace(NewStudentCurso))
+            {
+                StatusMessage = "Completa al menos nombre y curso del alumno.";
+                return;
+            }
+
+            var student = new Student
+            {
+                Nombre = NewStudentNombre.Trim(),
+                Email = NewStudentEmail.Trim(),
+                Telefono = NewStudentTelefono.Trim(),
+                Curso = NewStudentCurso.Trim(),
+                Plataforma = NewStudentPlataforma.Trim(),
+                SituacionLaboral = NewStudentSituacionLaboral.Trim(),
+                NivelEstudios = NewStudentNivelEstudios.Trim(),
+                Provincia = NewStudentProvincia.Trim(),
+                Observaciones = NewStudentObservaciones.Trim(),
+                Contacto = NewStudentContacto.Trim(),
+                Inscripcion = NewStudentInscripcion.Trim(),
+                FechaRegistro = string.IsNullOrWhiteSpace(NewStudentFechaRegistro)
+                    ? DateTime.Now.ToString("dd/MM/yyyy")
+                    : NewStudentFechaRegistro.Trim(),
+                AceptaPublicidad = NewStudentAceptaPublicidad
+            };
+
+            _data.Students.Add(student);
+            _data.Save();
+            RefreshStudents();
+            ClearNewStudentFields();
+            StatusMessage = $"✓  Alumno '{student.Nombre}' añadido.";
+        }
+
+        [RelayCommand]
+        private void DeleteStudent(StudentEntry? row)
+        {
+            if (row?.Model == null)
+            {
+                StatusMessage = "No se puede eliminar un alumno vinculado a un lead confirmado.";
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"¿Seguro que quieres eliminar al alumno '{row.Nombre}'?",
+                "Confirmar eliminación", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            _data.Students.Remove(row.Model);
+            _data.Save();
+            RefreshStudents();
+            StatusMessage = $"✓  Alumno '{row.Nombre}' eliminado.";
+        }
+
+        [RelayCommand]
+        private async Task SendStudentsEmails()
+        {
+            var students = (FilteredStudents?.Cast<StudentEntry>().ToList() ?? Students.ToList());
+            if (students.Count == 0)
+            {
+                StatusMessage = "No hay alumnos filtrados para avisar por email.";
+                return;
+            }
+
+            var candidates = students
+                .Where(s => !string.IsNullOrWhiteSpace(s.Email))
+                .ToList();
+
+            if (candidates.Count == 0)
+            {
+                StatusMessage = "No hay alumnos con email para avisar.";
+                return;
+            }
+
+            if (!SmtpOk()) return;
+
+            if (_data.SmtpConfig.ConfirmMassSend && candidates.Count > 1)
+            {
+                var confirm = MessageBox.Show(
+                    $"Vas a enviar {candidates.Count} emails de aviso. ¿Deseas continuar?",
+                    "Confirmar envío masivo",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (confirm != MessageBoxResult.Yes) return;
+            }
+
+            var scheduledAt = _data.SmtpConfig.EnableScheduledSend ? _data.SmtpConfig.ScheduledSendAt : null;
+            if (scheduledAt is DateTime when && when > DateTime.Now)
+            {
+                var waitMs = (int)Math.Min((when - DateTime.Now).TotalMilliseconds, int.MaxValue);
+                StatusMessage = $"Aviso programado para {when:dd/MM/yyyy HH:mm}. Esperando…";
+                await Task.Delay(waitMs);
+            }
+
+            var originalCount = candidates.Count;
+            candidates = ApplyStudentSendLimits(candidates, "alumnos");
+            if (candidates.Count == 0)
+            {
+                StatusMessage = "No se puede iniciar el aviso por límites de envío configurados.";
+                return;
+            }
+
+            IsBusy = true;
+            int ok = 0, fail = 0;
+            var failDetails = new List<string>();
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                var student = candidates[i];
+                StatusMessage = $"Aviso alumnos: enviando {i + 1} de {candidates.Count}: {student.Email}…";
+
+                var course = GetCourseForStudent(student);
+                if (course == null)
+                {
+                    fail++;
+                    failDetails.Add($"{student.Email}: curso no configurado.");
+                    continue;
+                }
+
+                if (!IsCourseConfigured(course))
+                {
+                    fail++;
+                    failDetails.Add($"{student.Email}: curso sin contenido configurado.");
+                    continue;
+                }
+
+                var (success, error) = await SendStudentWithCourseAsync(student, course);
+                if (success) ok++;
+                else
+                {
+                    fail++;
+                    var err = string.IsNullOrWhiteSpace(error) ? "Error desconocido al enviar." : error;
+                    failDetails.Add($"{student.Email}: {err}");
+                }
+
+                var delayMs = Math.Clamp(_data.SmtpConfig.SendDelayMs, 0, 10000);
+                if (i < candidates.Count - 1 && delayMs > 0)
+                    await Task.Delay(delayMs);
+            }
+
+            IsBusy = false;
+
+            if (fail > 0)
+            {
+                var preview = string.Join(" | ", failDetails.Take(3));
+                var more = failDetails.Count > 3 ? $" (+{failDetails.Count - 3} más)" : "";
+                StatusMessage = $"Aviso completado — ✓ {ok} enviados | ✗ {fail} fallidos. Detalle: {preview}{more}";
+            }
+            else
+            {
+                StatusMessage = $"Aviso completado — ✓ {ok} enviados  |  ✗ {fail} fallidos";
+            }
+
+            if (candidates.Count < originalCount)
+                StatusMessage += $" | Límite aplicado: {candidates.Count}/{originalCount}";
+        }
+
+        [RelayCommand]
+        private void SendStudentsWhatsApp()
+        {
+            var students = (FilteredStudents?.Cast<StudentEntry>().ToList() ?? Students.ToList());
+            if (students.Count == 0)
+            {
+                StatusMessage = "No hay alumnos filtrados para WhatsApp.";
+                return;
+            }
+
+            int opened = 0, invalid = 0, missingCourse = 0;
+            foreach (var student in students)
+            {
+                var course = GetCourseForStudent(student);
+                if (course == null)
+                {
+                    missingCourse++;
+                    continue;
+                }
+
+                if (TryOpenWhatsApp(student, course)) opened++;
+                else invalid++;
+            }
+
+            var parts = new List<string> { $"WhatsApp alumnos: {opened} chats abiertos" };
+            if (invalid > 0) parts.Add($"{invalid} sin teléfono válido");
+            if (missingCourse > 0) parts.Add($"{missingCourse} sin curso configurado");
+            StatusMessage = string.Join(", ", parts) + ".";
+        }
+
         public IReadOnlyList<string> StatusFilterOptions { get; } =
             new[] { "Todos", "Pendiente", "Enviado", "Duplicado", "Email inválido", "Incidencias", "Interesado", "Confirmado", "Descartado", "Seguimiento hoy" };
 
@@ -126,6 +334,9 @@ namespace LeadMailer.ViewModels
         private ICollectionView? _filteredLegacyLeads;
         public ICollectionView FilteredLegacyLeads => _filteredLegacyLeads!;
 
+        private ICollectionView? _filteredStudents;
+        public ICollectionView FilteredStudents => _filteredStudents!;
+
         private readonly List<string> _lastFailedLeadKeys = new();
         private Action? _undoAction;
         private string _undoDescription = "";
@@ -143,7 +354,9 @@ namespace LeadMailer.ViewModels
             BuildFilteredView();
             BuildHistoryView();
             BuildLegacyFilteredView();
+            BuildStudentsView();
             RefreshHistory();
+            RefreshStudents();
         }
 
         // ── Reacción a cambios de filtro ──────────────────────────────────────
@@ -162,6 +375,8 @@ namespace LeadMailer.ViewModels
         partial void OnLegacyOnlyDuplicatesChanged(bool value)      => RefreshLegacyFilter();
         partial void OnLegacyOnlyInvalidEmailChanged(bool value)    => RefreshLegacyFilter();
         partial void OnLegacyOnlyIssuesChanged(bool value)          => RefreshLegacyFilter();
+        partial void OnStudentSearchTextChanged(string value)       => RefreshStudentsFilter();
+        partial void OnSelectedStudentCourseFilterChanged(string value) => RefreshStudentsFilter();
         partial void OnLegacySelectedCampaignCourseChanged(CourseInfo? value)
         {
             RefreshLegacySentStateForSelectedCampaignCourse();
@@ -228,6 +443,7 @@ namespace LeadMailer.ViewModels
                             _data.SetLeadLabel(key, l);
                             UpdateCounts();
                             RefreshFilter();
+                            RefreshStudents();
                         }));
                 }
                 RefreshCourses();
@@ -235,6 +451,7 @@ namespace LeadMailer.ViewModels
                 UpdateCounts();
                 RefreshFilter();
                 RefreshLeadIssuesSummary();
+                RefreshStudents();
 
                 UpdateCourseWarning();
                 StatusMessage = rawLeads.Count == 0
@@ -309,6 +526,18 @@ namespace LeadMailer.ViewModels
             {
                 StatusMessage = $"Error al cargar leads antiguos: {ex.Message}";
             }
+        }
+
+        private void RegisterStudentRow(StudentEntry row)
+        {
+            row.PropertyChanged += OnStudentRowPropertyChanged;
+        }
+
+        private void OnStudentRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(StudentEntry.Curso)
+                || e.PropertyName == nameof(StudentEntry.CursoDisplay))
+                RefreshStudentsFilter();
         }
 
         [RelayCommand]
@@ -461,7 +690,8 @@ namespace LeadMailer.ViewModels
         [RelayCommand]
         private async Task SendSelected()
         {
-            var pending = Leads.Where(l => l.IsSelected && !l.AlreadySent && !l.IsDiscarded).ToList();
+            var visible = (FilteredLeads?.Cast<LeadRow>().ToList() ?? Leads.ToList());
+            var pending = visible.Where(l => l.IsSelected && !l.AlreadySent && !l.IsDiscarded).ToList();
             if (pending.Count == 0) { StatusMessage = "No hay leads seleccionados sin enviar."; return; }
             if (!SmtpOk()) return;
 
@@ -588,7 +818,7 @@ namespace LeadMailer.ViewModels
                 $"Prevalidación campaña: {candidates.Count} revisados | Emails inválidos: {invalidEmailCount} | Curso objetivo no seleccionado: {missingCampaignCourse} | Curso objetivo sin configurar: {unconfiguredCampaignCourse} | Duplicados: {duplicateCount}";
         }
 
-        [RelayCommand] private void SelectAll()   { foreach (var l in Leads.Where(x => x.CanSelect)) l.IsSelected = true; }
+        [RelayCommand] private void SelectAll()   { foreach (var l in GetVisibleLeads().Where(x => x.CanSelect)) l.IsSelected = true; }
         [RelayCommand] private void DeselectAll() { foreach (var l in Leads) l.IsSelected = false; }
 
         [RelayCommand]
@@ -617,7 +847,7 @@ namespace LeadMailer.ViewModels
         [RelayCommand]
         private void SelectDuplicateLeads()
         {
-            foreach (var l in Leads)
+            foreach (var l in GetVisibleLeads())
                 l.IsSelected = l.CanSelect && l.IsDuplicate;
 
             var count = Leads.Count(l => l.IsSelected);
@@ -629,7 +859,7 @@ namespace LeadMailer.ViewModels
         [RelayCommand]
         private void SelectInvalidEmailLeads()
         {
-            foreach (var l in Leads)
+            foreach (var l in GetVisibleLeads())
                 l.IsSelected = l.CanSelect && l.IsInvalidEmail;
 
             var count = Leads.Count(l => l.IsSelected);
@@ -641,7 +871,7 @@ namespace LeadMailer.ViewModels
         [RelayCommand]
         private void SelectReadyLeads()
         {
-            foreach (var l in Leads)
+            foreach (var l in GetVisibleLeads())
                 l.IsSelected = l.CanSelect
                                && !l.IsDuplicate
                                && !l.IsInvalidEmail
@@ -656,7 +886,7 @@ namespace LeadMailer.ViewModels
         [RelayCommand]
         private void SelectIssueLeads()
         {
-            foreach (var l in Leads)
+            foreach (var l in GetVisibleLeads())
                 l.IsSelected = l.CanSelect
                                && (l.IsDuplicate || l.IsInvalidEmail || !IsCourseConfigured(l.Course));
 
@@ -669,7 +899,7 @@ namespace LeadMailer.ViewModels
         [RelayCommand]
         private void SelectFollowUpToday()
         {
-            foreach (var l in Leads)
+            foreach (var l in GetVisibleLeads())
                 l.IsSelected = l.CanSelect && IsFollowUpToday(l.NextContact);
 
             var count = Leads.Count(l => l.IsSelected);
@@ -882,6 +1112,7 @@ namespace LeadMailer.ViewModels
 
             UpdateCounts();
             RefreshFilter();
+            RefreshStudents();
             StatusMessage = $"✓  Lead '{row.Nombre}' eliminado de la lista.";
         }
 
@@ -893,6 +1124,8 @@ namespace LeadMailer.ViewModels
             if (course == null) return;
             EditingCourse = Clone(course);
             WhatsappMessage = course.TextoWhatsApp ?? "";
+            SocialMessage = course.TextoSocial ?? "";
+            CourseStartMessage = course.TextoInicioCurso ?? "";
             if (string.IsNullOrWhiteSpace(EditingCourse.TextoMarketingRich) && !string.IsNullOrWhiteSpace(EditingCourse.TextoMarketing))
                 EditingCourse.TextoMarketingRich = RichTextSerialization.PlainTextToXaml(EditingCourse.TextoMarketing);
             HasGeminiError = false;
@@ -907,6 +1140,8 @@ namespace LeadMailer.ViewModels
             if (!string.IsNullOrWhiteSpace(EditingCourse.TextoMarketingRich))
                 EditingCourse.TextoMarketing = RichTextSerialization.XamlToPlainText(EditingCourse.TextoMarketingRich);
             EditingCourse.TextoWhatsApp = WhatsappMessage;
+            EditingCourse.TextoSocial = SocialMessage;
+            EditingCourse.TextoInicioCurso = CourseStartMessage;
             _data.UpdateCourse(EditingCourse);
             RefreshCourses();
             UpdateCourseWarning();
@@ -1004,7 +1239,7 @@ namespace LeadMailer.ViewModels
             StatusMessage = $"✓  Eliminados {deletedIds.Count} curso(s) sin configurar.";
         }
 
-        [RelayCommand] private void CancelEdit() { EditingCourse = null; WhatsappMessage = ""; CurrentView = "Courses"; }
+        [RelayCommand] private void CancelEdit() { EditingCourse = null; WhatsappMessage = ""; SocialMessage = ""; CurrentView = "Courses"; }
 
         // ── IA ────────────────────────────────────────────────────────────────
         [RelayCommand]
@@ -1185,6 +1420,7 @@ namespace LeadMailer.ViewModels
                 RefreshLegacyFilter();
                 UpdateCounts();
                 RefreshFilter();
+                RefreshStudents();
                 UpdateCourseWarning();
 
                 StatusMessage = "✓  Copia importada correctamente.";
@@ -1272,6 +1508,18 @@ namespace LeadMailer.ViewModels
             _filteredHistory.SortDescriptions.Add(new SortDescription(nameof(SentRecord.FechaEnvio), ListSortDirection.Descending));
         }
 
+        private IEnumerable<LeadRow> GetVisibleLeads()
+            => (FilteredLeads?.Cast<LeadRow>().ToList() ?? Leads.ToList());
+
+        private void BuildStudentsView()
+        {
+            _filteredStudents = CollectionViewSource.GetDefaultView(Students);
+            _filteredStudents.Filter = StudentsFilter;
+            _filteredStudents.SortDescriptions.Add(new SortDescription(nameof(StudentEntry.CursoDisplay), ListSortDirection.Ascending));
+            _filteredStudents.SortDescriptions.Add(new SortDescription(nameof(StudentEntry.Nombre), ListSortDirection.Ascending));
+            _filteredStudents.GroupDescriptions.Add(new PropertyGroupDescription(nameof(StudentEntry.CursoDisplay)));
+        }
+
         private void BuildLegacyFilteredView()
         {
             LegacyOriginCourseFilterOptions.Clear();
@@ -1331,6 +1579,31 @@ namespace LeadMailer.ViewModels
 
             return true;
         }
+
+        private bool StudentsFilter(object obj)
+        {
+            if (obj is not StudentEntry row) return false;
+
+            if (!string.IsNullOrWhiteSpace(SelectedStudentCourseFilter)
+                && SelectedStudentCourseFilter != "Todos"
+                && NormalizeStudentCourseKey(row.CursoDisplay) != NormalizeStudentCourseKey(SelectedStudentCourseFilter)
+                && NormalizeStudentCourseKey(row.CursoRaw) != NormalizeStudentCourseKey(SelectedStudentCourseFilter))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(StudentSearchText))
+            {
+                var q = StudentSearchText.Trim().ToLowerInvariant();
+                if (!row.Nombre.ToLowerInvariant().Contains(q)
+                 && !row.Email.ToLowerInvariant().Contains(q)
+                 && !row.CursoDisplay.ToLowerInvariant().Contains(q))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static string NormalizeStudentCourseKey(string? value)
+            => (value ?? string.Empty).Trim().ToLowerInvariant();
 
         private bool HasLeadIssues(LeadRow row)
             => row.IsDuplicate || row.IsInvalidEmail || !IsCourseConfigured(row.Course);
@@ -1487,12 +1760,54 @@ namespace LeadMailer.ViewModels
             _filteredHistory?.Refresh();
         }
 
+        private void RefreshStudentsFilter()
+        {
+            _filteredStudents?.Refresh();
+        }
+
         private void RefreshLegacyFilter()
         {
             _filteredLegacyLeads?.Refresh();
             LegacyFilteredCount = _filteredLegacyLeads?.Cast<LeadRow>().Count() ?? 0;
             RefreshLegacySelectionCount();
             RefreshLegacyIssuesSummary();
+        }
+
+        private void RefreshStudents()
+        {
+            Students.Clear();
+            StudentCourseFilterOptions.Clear();
+            StudentCourseFilterOptions.Add("Todos");
+
+            foreach (var course in Courses.Where(IsCourseConfigured).OrderBy(c => c.NombreCorto))
+                AddStudentCourseFilterOption(course.NombreCorto);
+
+            foreach (var lead in Leads.Where(l => l.Label == LeadLabel.Confirmado))
+            {
+                var row = new StudentEntry(lead);
+                RegisterStudentRow(row);
+                Students.Add(row);
+            }
+
+            foreach (var student in _data.Students)
+            {
+                var row = new StudentEntry(student, _data.Save);
+                RegisterStudentRow(row);
+                Students.Add(row);
+            }
+
+            if (!StudentCourseFilterOptions.Contains(SelectedStudentCourseFilter))
+                SelectedStudentCourseFilter = "Todos";
+
+            RefreshStudentsFilter();
+        }
+
+        private void AddStudentCourseFilterOption(string? course)
+        {
+            if (string.IsNullOrWhiteSpace(course)) return;
+            var trimmed = course.Trim();
+            if (!StudentCourseFilterOptions.Any(x => string.Equals(x, trimmed, StringComparison.OrdinalIgnoreCase)))
+                StudentCourseFilterOptions.Add(trimmed);
         }
 
         private void RefreshLegacyIssuesSummary()
@@ -1517,6 +1832,112 @@ namespace LeadMailer.ViewModels
 
                 if (sentForSelectedCourse && row.IsSelected)
                     row.IsSelected = false;
+            }
+        }
+
+        private string BuildSocialText()
+        {
+            if (!string.IsNullOrWhiteSpace(SocialMessage))
+                return SocialMessage.Trim();
+
+            if (EditingCourse == null)
+                return string.Empty;
+
+            var fallback = !string.IsNullOrWhiteSpace(EditingCourse.TextoMarketing)
+                ? EditingCourse.TextoMarketing
+                : RichTextSerialization.XamlToPlainText(EditingCourse.TextoMarketingRich);
+
+            return fallback?.Trim() ?? string.Empty;
+        }
+
+        [RelayCommand]
+        private void UseMarketingAsSocial()
+        {
+            if (EditingCourse == null) return;
+            var text = !string.IsNullOrWhiteSpace(EditingCourse.TextoMarketing)
+                ? EditingCourse.TextoMarketing
+                : RichTextSerialization.XamlToPlainText(EditingCourse.TextoMarketingRich);
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                StatusMessage = "No hay texto de marketing disponible para usar en redes sociales.";
+                return;
+            }
+
+            SocialMessage = text.Trim();
+            StatusMessage = "✓  Texto social actualizado desde marketing.";
+        }
+
+        [RelayCommand]
+        private void CopySocialText()
+        {
+            var text = BuildSocialText();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                StatusMessage = "No hay texto social para copiar.";
+                return;
+            }
+
+            try
+            {
+                Clipboard.SetText(text);
+                StatusMessage = "✓  Texto social copiado al portapapeles.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"✗  No se pudo copiar el texto social: {ex.Message}";
+            }
+        }
+
+        [RelayCommand]
+        private void OpenLinkedIn()
+        {
+            var text = BuildSocialText();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                StatusMessage = "No hay texto social para publicar.";
+                return;
+            }
+
+            try
+            {
+                Clipboard.SetText(text);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://www.linkedin.com/feed/",
+                    UseShellExecute = true
+                });
+                StatusMessage = "LinkedIn abierto. Texto copiado al portapapeles.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"✗  No se pudo abrir LinkedIn: {ex.Message}";
+            }
+        }
+
+        [RelayCommand]
+        private void OpenFacebook()
+        {
+            var text = BuildSocialText();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                StatusMessage = "No hay texto social para publicar.";
+                return;
+            }
+
+            try
+            {
+                Clipboard.SetText(text);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://www.facebook.com/",
+                    UseShellExecute = true
+                });
+                StatusMessage = "Facebook abierto. Texto copiado al portapapeles.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"✗  No se pudo abrir Facebook: {ex.Message}";
             }
         }
 
@@ -1662,6 +2083,23 @@ namespace LeadMailer.ViewModels
         private void RefreshLegacySelectionCount()
             => LegacySelectedCount = LegacyLeads.Count(x => x.IsSelected);
 
+        private void ClearNewStudentFields()
+        {
+            NewStudentNombre = "";
+            NewStudentEmail = "";
+            NewStudentTelefono = "";
+            NewStudentCurso = "";
+            NewStudentPlataforma = "";
+            NewStudentSituacionLaboral = "";
+            NewStudentNivelEstudios = "";
+            NewStudentProvincia = "";
+            NewStudentObservaciones = "";
+            NewStudentContacto = "";
+            NewStudentInscripcion = "";
+            NewStudentFechaRegistro = "";
+            NewStudentAceptaPublicidad = true;
+        }
+
         private void UpdateCounts()
         {
             PendingCount      = Leads.Count(l => l.Status == LeadStatus.Pendiente);
@@ -1744,6 +2182,133 @@ namespace LeadMailer.ViewModels
             return result;
         }
 
+        private List<StudentEntry> ApplyStudentSendLimits(List<StudentEntry> rows, string scope)
+        {
+            var result = rows;
+
+            if (_data.SmtpConfig.MaxSendsPerSession > 0)
+                result = result.Take(_data.SmtpConfig.MaxSendsPerSession).ToList();
+
+            if (_data.SmtpConfig.MaxSendsPerDay > 0)
+            {
+                var todaySent = _data.SentRecords.Count(r => r.Success && r.FechaEnvio.Date == DateTime.Today);
+                var remainingToday = Math.Max(0, _data.SmtpConfig.MaxSendsPerDay - todaySent);
+                result = result.Take(remainingToday).ToList();
+            }
+
+            if (result.Count < rows.Count)
+            {
+                var sessionLimit = _data.SmtpConfig.MaxSendsPerSession > 0 ? _data.SmtpConfig.MaxSendsPerSession.ToString() : "∞";
+                var dayLimit = _data.SmtpConfig.MaxSendsPerDay > 0 ? _data.SmtpConfig.MaxSendsPerDay.ToString() : "∞";
+                StatusMessage = $"Aplicando límites de envío ({scope}): sesión={sessionLimit}, día={dayLimit}.";
+            }
+
+            return result;
+        }
+
+        private CourseInfo? GetCourseForStudent(StudentEntry student)
+        {
+            var raw = student.CursoRaw;
+            if (!string.IsNullOrWhiteSpace(raw))
+            {
+                var byRaw = _data.GetCourseByRaw(raw);
+                if (byRaw != null) return byRaw;
+            }
+
+            var display = student.CursoDisplay;
+            return Courses.FirstOrDefault(c => string.Equals(c.NombreCorto, display, StringComparison.OrdinalIgnoreCase))
+                ?? Courses.FirstOrDefault(c => string.Equals(c.CursoRaw?.Trim(), display?.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static Lead BuildLeadFromStudent(StudentEntry student)
+        {
+            if (student.LeadRow != null) return student.LeadRow.Lead;
+
+            return new Lead
+            {
+                SourceRow = 0,
+                FechaRegistro = student.FechaRegistro,
+                Curso = student.CursoRaw,
+                Plataforma = student.Plataforma,
+                SituacionLaboral = student.SituacionLaboral,
+                NivelEstudios = student.NivelEstudios,
+                Nombre = student.Nombre,
+                Email = student.Email,
+                Telefono = student.Telefono,
+                Provincia = student.Provincia,
+                AceptaPublicidad = student.AceptaPublicidad,
+                Observaciones = student.Observaciones,
+                Contacto = student.Contacto,
+                Inscripcion = student.Inscripcion
+            };
+        }
+
+        private static LeadLabel GetStudentLabel(StudentEntry student)
+            => student.LeadRow?.Label ?? LeadLabel.Confirmado;
+
+        private string GetStudentLeadKey(StudentEntry student, Lead lead)
+        {
+            if (student.LeadRow != null) return _data.BuildLeadKey(lead);
+            if (!string.IsNullOrWhiteSpace(student.Model?.Id)) return $"student:{student.Model.Id}";
+            return _data.BuildLeadKey(lead);
+        }
+
+        private async Task<(bool Success, string? Error)> SendStudentWithCourseAsync(StudentEntry student, CourseInfo course)
+        {
+            var lead = BuildLeadFromStudent(student);
+            if (!IsValidEmail(lead.Email))
+            {
+                var invalidError = "Email inválido.";
+                _data.AddSentRecord(new SentRecord
+                {
+                    LeadKey = GetStudentLeadKey(student, lead),
+                    NombreLead = lead.Nombre,
+                    Email = lead.Email,
+                    CursoRaw = string.IsNullOrWhiteSpace(course.CursoRaw) ? lead.Curso : course.CursoRaw,
+                    FechaEnvio = DateTime.Now,
+                    Success = false,
+                    Error = invalidError
+                });
+                RefreshHistory();
+                return (false, invalidError);
+            }
+
+            var labeledCourse = ApplyLabelTemplateToCourse(course, GetStudentLabel(student));
+            var effectiveCourse = ApplyStartMessageToCourse(labeledCourse, student);
+            var (success, error) = await _emailService.SendAsync(lead, effectiveCourse, _data.SmtpConfig);
+            _data.AddSentRecord(new SentRecord
+            {
+                LeadKey = GetStudentLeadKey(student, lead),
+                NombreLead = lead.Nombre,
+                Email = lead.Email,
+                CursoRaw = string.IsNullOrWhiteSpace(course.CursoRaw) ? lead.Curso : course.CursoRaw,
+                FechaEnvio = DateTime.Now,
+                Success = success,
+                Error = error
+            });
+            RefreshHistory();
+            return (success, error);
+        }
+
+        private CourseInfo ApplyStartMessageToCourse(CourseInfo course, StudentEntry student)
+        {
+            var template = (course.TextoInicioCurso ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(template)) return course;
+
+            var courseName = string.IsNullOrWhiteSpace(student.CursoDisplay) ? course.NombreCorto : student.CursoDisplay;
+            var message = template
+                .Replace("{nombre}", student.Nombre)
+                .Replace("{curso}", courseName);
+
+            var clone = Clone(course);
+            clone.TextoMarketing = string.IsNullOrWhiteSpace(clone.TextoMarketing)
+                ? message
+                : $"{message}\n\n{clone.TextoMarketing}";
+            clone.TextoMarketingRich = RichTextSerialization.PlainTextToXaml(clone.TextoMarketing);
+
+            return clone;
+        }
+
         private string GetLabelTemplate(LeadLabel label)
             => label switch
             {
@@ -1771,7 +2336,7 @@ namespace LeadMailer.ViewModels
         {
             Id = s.Id, CursoRaw = s.CursoRaw, NombreCorto = s.NombreCorto, NombreComplementario = s.NombreComplementario,
             AsuntoEmail = s.AsuntoEmail, TextoMarketing = s.TextoMarketing, TextoMarketingRich = s.TextoMarketingRich,
-            TextoWhatsApp = s.TextoWhatsApp,
+            TextoInicioCurso = s.TextoInicioCurso, TextoWhatsApp = s.TextoWhatsApp, TextoSocial = s.TextoSocial,
             RequisitosAcceso = s.RequisitosAcceso, DocumentacionNecesaria = s.DocumentacionNecesaria,
             FechaInicio = s.FechaInicio, FechaFin = s.FechaFin, HorarioInfo = s.HorarioInfo,
             UrlFichaInscripcion = s.UrlFichaInscripcion, PdfAdjuntoPath = s.PdfAdjuntoPath,
@@ -2028,6 +2593,55 @@ namespace LeadMailer.ViewModels
             catch (Exception ex)
             {
                 StatusMessage = $"✗  No se pudo generar la previsualización: {ex.Message}";
+            }
+        }
+
+        private static bool TryOpenWhatsApp(StudentEntry student, CourseInfo course)
+        {
+            var phone = NormalizePhoneForWhatsApp(student.Telefono);
+            if (string.IsNullOrWhiteSpace(phone)) return false;
+
+            CreateAndOpenVCard(student.Nombre, phone, student.Email);
+
+            var courseName = string.IsNullOrWhiteSpace(student.CursoDisplay) ? course.NombreCorto : student.CursoDisplay;
+            var startTemplate = (course.TextoInicioCurso ?? string.Empty).Trim();
+            var baseTemplate = !string.IsNullOrWhiteSpace(startTemplate)
+                ? startTemplate
+                : course.TextoWhatsApp;
+            var text = !string.IsNullOrWhiteSpace(baseTemplate)
+                ? baseTemplate
+                    .Replace("{nombre}", student.Nombre)
+                    .Replace("{curso}", courseName)
+                : $"Hola {student.Nombre}, te escribimos por tu interés en el curso \"{courseName}\".";
+
+            try
+            {
+                var url = $"whatsapp://send?phone={phone}&text={Uri.EscapeDataString(text)}";
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Services.AppLogger.Warn($"WhatsApp desktop no disponible para {phone}, intentando web: {ex.Message}");
+                try
+                {
+                    var url = $"https://wa.me/{phone}?text={Uri.EscapeDataString(text)}";
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                    return true;
+                }
+                catch (Exception ex2)
+                {
+                    Services.AppLogger.Error($"TryOpenWhatsApp: no se pudo abrir WhatsApp web para {phone}", ex2);
+                    return false;
+                }
             }
         }
 

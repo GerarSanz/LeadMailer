@@ -106,6 +106,24 @@
                         </Grid>
                     </Button>
 
+                    <Button Command="{Binding NavigateCommand}" CommandParameter="Students">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentView}" Value="Students">
+                                        <Setter Property="Background" Value="#1E3A8A"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <Grid Width="180">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="🎓" FontSize="15" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Alumnos" FontSize="13" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Button>
+
                     <Button Command="{Binding NavigateCommand}" CommandParameter="History">
                         <Button.Style>
                             <Style TargetType="Button" BasedOn="{StaticResource NavButton}">
@@ -617,6 +635,275 @@
                             </DataGridTemplateColumn>
 
                         </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </DockPanel>
+
+            <!-- ─────────────────────────────────────────
+                 VIEW: STUDENTS
+            ───────────────────────────────────────── -->
+            <DockPanel Margin="28">
+                <DockPanel.Style>
+                    <Style TargetType="DockPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CurrentView}" Value="Students">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DockPanel.Style>
+
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,18">
+                    <TextBlock Text="Alumnos" FontSize="26" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Leads confirmados y alumnos añadidos manualmente agrupados por curso"
+                               FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <WrapPanel>
+                        <StackPanel Width="220" Margin="0,0,8,8">
+                            <TextBlock Text="BUSCAR" Style="{StaticResource FieldLabel}"/>
+                            <TextBox Text="{Binding StudentSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource InputStyle}" Height="34"/>
+                        </StackPanel>
+                        <StackPanel Width="220" Margin="0,0,8,8">
+                            <TextBlock Text="CURSO" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox ItemsSource="{Binding StudentCourseFilterOptions}"
+                                      SelectedItem="{Binding SelectedStudentCourseFilter}"
+                                      Height="34" VerticalContentAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+                    </WrapPanel>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <WrapPanel Margin="0,0,0,6">
+                            <Button Content="📧  Avisar por email"
+                                    Command="{Binding SendStudentsEmailsCommand}"
+                                    Style="{StaticResource BtnSuccess}"
+                                    Margin="0,0,6,6" FontSize="12"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvBoolVis}}"/>
+                            <Button Content="💬  WhatsApp"
+                                    Command="{Binding SendStudentsWhatsAppCommand}"
+                                    Style="{StaticResource BtnSecondary}"
+                                    Margin="0,0,6,6" FontSize="12"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvBoolVis}}"/>
+                        </WrapPanel>
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+
+                <Border DockPanel.Dock="Top" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="AÑADIR ALUMNO MANUAL" Style="{StaticResource FieldLabel}" Margin="0,0,0,6"/>
+                        <WrapPanel>
+                            <StackPanel Width="180" Margin="0,0,8,8">
+                                <TextBlock Text="NOMBRE" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentNombre, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="200" Margin="0,0,8,8">
+                                <TextBlock Text="EMAIL" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentEmail, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="130" Margin="0,0,8,8">
+                                <TextBlock Text="TELÉFONO" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentTelefono, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="200" Margin="0,0,8,8">
+                                <TextBlock Text="CURSO" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentCurso, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="140" Margin="0,0,8,8">
+                                <TextBlock Text="FECHA REG." Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentFechaRegistro, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="160" Margin="0,0,8,8">
+                                <TextBlock Text="PROVINCIA" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentProvincia, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="160" Margin="0,0,8,8">
+                                <TextBlock Text="PLATAFORMA" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentPlataforma, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="160" Margin="0,0,8,8">
+                                <TextBlock Text="SIT. LAB." Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentSituacionLaboral, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="160" Margin="0,0,8,8">
+                                <TextBlock Text="NIVEL ESTUDIOS" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentNivelEstudios, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="220" Margin="0,0,8,8">
+                                <TextBlock Text="OBSERVACIONES" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentObservaciones, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="200" Margin="0,0,8,8">
+                                <TextBlock Text="CONTACTO" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentContacto, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="200" Margin="0,0,8,8">
+                                <TextBlock Text="INSCRIPCIÓN" Style="{StaticResource FieldLabel}"/>
+                                <TextBox Text="{Binding NewStudentInscripcion, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource InputStyle}" Height="34"/>
+                            </StackPanel>
+                            <StackPanel Width="140" Margin="0,0,8,8">
+                                <TextBlock Text="PUBLICIDAD" Style="{StaticResource FieldLabel}"/>
+                                <CheckBox IsChecked="{Binding NewStudentAceptaPublicidad}"
+                                          VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Button Content="➕  Añadir alumno"
+                                    Command="{Binding AddStudentCommand}"
+                                    Style="{StaticResource BtnPrimary}"
+                                    Margin="0,0,0,8" Padding="12,6"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardStyle}" Padding="0">
+                    <DataGrid ItemsSource="{Binding FilteredStudents}"
+                              CanUserResizeColumns="True"
+                              CanUserSortColumns="True"
+                              RowDetailsVisibilityMode="VisibleWhenSelected">
+                        <DataGrid.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#EFF6FF" CornerRadius="6" Padding="8,4" Margin="0,6,0,4">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#1E40AF"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </DataGrid.GroupStyle>
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="NOMBRE" Width="150">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Nombre, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                 IsReadOnly="{Binding IsLinkedToLead}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="EMAIL" Width="200">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                 IsReadOnly="{Binding IsLinkedToLead}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="TELÉFONO" Width="130">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Telefono, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                 IsReadOnly="{Binding IsLinkedToLead}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="CURSO" Width="220">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBox Text="{Binding Curso, UpdateSourceTrigger=PropertyChanged}"
+                                                 Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                 IsReadOnly="{Binding IsLinkedToLead}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="ORIGEN" Binding="{Binding Origin}" Width="130" IsReadOnly="True"/>
+                            <DataGridTemplateColumn Header="ACCIONES" Width="120" CanUserResize="False" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="🗑"
+                                                Command="{Binding DataContext.DeleteStudentCommand,
+                                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource BtnSecondary}"
+                                                IsEnabled="{Binding IsManual}"
+                                                Foreground="#B91C1C" BorderBrush="#FECACA"
+                                                FontSize="11" Padding="5,2"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                        <DataGrid.RowDetailsTemplate>
+                            <DataTemplate>
+                                <Border Background="#F8FAFC" Padding="10" CornerRadius="6" Margin="6">
+                                    <WrapPanel>
+                                        <StackPanel Width="180" Margin="0,0,12,8">
+                                            <TextBlock Text="PLATAFORMA" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding Plataforma, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                     IsReadOnly="{Binding IsLinkedToLead}"/>
+                                        </StackPanel>
+                                        <StackPanel Width="180" Margin="0,0,12,8">
+                                            <TextBlock Text="SIT. LAB." Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding SituacionLaboral, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                     IsReadOnly="{Binding IsLinkedToLead}"/>
+                                        </StackPanel>
+                                        <StackPanel Width="180" Margin="0,0,12,8">
+                                            <TextBlock Text="NIVEL" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding NivelEstudios, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                     IsReadOnly="{Binding IsLinkedToLead}"/>
+                                        </StackPanel>
+                                        <StackPanel Width="160" Margin="0,0,12,8">
+                                            <TextBlock Text="PROVINCIA" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding Provincia, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                     IsReadOnly="{Binding IsLinkedToLead}"/>
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="OBSERVACIONES" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding Observaciones, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                     IsReadOnly="{Binding IsLinkedToLead}"/>
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="CONTACTO" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding Contacto, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                     IsReadOnly="{Binding IsLinkedToLead}"/>
+                                        </StackPanel>
+                                        <StackPanel Width="200" Margin="0,0,12,8">
+                                            <TextBlock Text="INSCRIPCIÓN" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding Inscripcion, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                     IsReadOnly="{Binding IsLinkedToLead}"/>
+                                        </StackPanel>
+                                        <StackPanel Width="140" Margin="0,0,12,8">
+                                            <TextBlock Text="FECHA REG." Style="{StaticResource FieldLabel}"/>
+                                            <TextBox Text="{Binding FechaRegistro, UpdateSourceTrigger=PropertyChanged}"
+                                                     Style="{StaticResource InputStyle}" Height="30" Padding="8,0"
+                                                     IsReadOnly="{Binding IsLinkedToLead}"/>
+                                        </StackPanel>
+                                        <StackPanel Width="120" Margin="0,0,12,8" VerticalAlignment="Bottom">
+                                            <TextBlock Text="PUBLICIDAD" Style="{StaticResource FieldLabel}"/>
+                                            <CheckBox IsChecked="{Binding AceptaPublicidad, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEnabled="{Binding IsManual}"/>
+                                        </StackPanel>
+                                    </WrapPanel>
+                                </Border>
+                            </DataTemplate>
+                        </DataGrid.RowDetailsTemplate>
                     </DataGrid>
                 </Border>
             </DockPanel>
@@ -1424,6 +1711,20 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Texto aviso inicio de curso -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <TextBlock Text="TEXTO AVISO INICIO DE CURSO" Style="{StaticResource FieldLabel}" Margin="0,0,0,8"/>
+                                <TextBlock Text="Mensaje que se usa al avisar a alumnos confirmados" Style="{StaticResource FieldLabel}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                <TextBox Text="{Binding CourseStartMessage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource TextAreaStyle}" Height="80"
+                                         ToolTip="Usa {nombre} y {curso} como variables. Ejemplo: 'Hola {nombre}, el curso {curso} empieza pronto'"/>
+                                <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}">
+                                    💡 Deja vacío para usar el mensaje de WhatsApp o el texto genérico.
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Texto para WhatsApp -->
                         <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
                             <StackPanel>
@@ -1436,6 +1737,36 @@
                                 <TextBlock Margin="0,8,0,0" FontSize="11" Foreground="{StaticResource TextMutedBrush}">
                                     💡 Deja vacío para usar el mensaje genérico. Usa {nombre} para el nombre del lead y {curso} para el nombre del curso.
                                 </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Texto para redes sociales -->
+                        <Border Style="{StaticResource CardStyle}" Margin="0,0,0,14">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="TEXTO PARA REDES SOCIALES" Style="{StaticResource FieldLabel}"/>
+                                        <TextBlock Text="Copia el texto o abre LinkedIn/Facebook para publicar" Style="{StaticResource FieldLabel}"
+                                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                    <WrapPanel Grid.Column="1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <Button Content="🧠  Usar marketing" Command="{Binding UseMarketingAsSocialCommand}"
+                                                Style="{StaticResource BtnSecondary}" Margin="0,0,6,0" FontSize="12"/>
+                                        <Button Content="📋  Copiar" Command="{Binding CopySocialTextCommand}"
+                                                Style="{StaticResource BtnSecondary}" Margin="0,0,6,0" FontSize="12"/>
+                                        <Button Content="in  LinkedIn" Command="{Binding OpenLinkedInCommand}"
+                                                Style="{StaticResource BtnSecondary}" Margin="0,0,6,0" FontSize="12"/>
+                                        <Button Content="f  Facebook" Command="{Binding OpenFacebookCommand}"
+                                                Style="{StaticResource BtnSecondary}" FontSize="12"/>
+                                    </WrapPanel>
+                                </Grid>
+                                <TextBox Text="{Binding SocialMessage, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource TextAreaStyle}" Height="90"
+                                         ToolTip="Texto pensado para redes sociales"/>
                             </StackPanel>
                         </Border>
 

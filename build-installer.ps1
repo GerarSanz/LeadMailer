@@ -1,6 +1,6 @@
 #Requires -Version 5.1
 param(
-    [string]$Version       = "2.1.0",
+    [string]$Version       = "2.2.0",
     [string]$InnoSetupPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
     [switch]$SkipInstaller
 )

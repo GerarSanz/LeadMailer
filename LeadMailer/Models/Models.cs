@@ -25,6 +25,252 @@ public class Lead
     public string Inscripcion      { get; set; } = "";
 }
 
+// ─── Alumno (registro manual) ───────────────────────────────────────────────
+public class Student
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string FechaRegistro    { get; set; } = "";
+    public string Curso            { get; set; } = "";
+    public string Plataforma       { get; set; } = "";
+    public string SituacionLaboral { get; set; } = "";
+    public string NivelEstudios    { get; set; } = "";
+    public string Nombre           { get; set; } = "";
+    public string Email            { get; set; } = "";
+    public string Telefono         { get; set; } = "";
+    public string Provincia        { get; set; } = "";
+    public bool   AceptaPublicidad { get; set; }
+    public string Observaciones    { get; set; } = "";
+    public string Contacto         { get; set; } = "";
+    public string Inscripcion      { get; set; } = "";
+}
+
+// ─── Alumno en UI (manual o lead confirmado) ───────────────────────────────
+public class StudentEntry : ObservableObject
+{
+    private readonly Student? _model;
+    private readonly LeadRow? _leadRow;
+    private readonly Action? _onChanged;
+
+    private string _fechaRegistro = "";
+    private string _curso = "";
+    private string _plataforma = "";
+    private string _situacionLaboral = "";
+    private string _nivelEstudios = "";
+    private string _nombre = "";
+    private string _email = "";
+    private string _telefono = "";
+    private string _provincia = "";
+    private bool   _aceptaPublicidad;
+    private string _observaciones = "";
+    private string _contacto = "";
+    private string _inscripcion = "";
+
+    public bool IsLinkedToLead => _leadRow != null;
+    public bool IsManual => _model != null;
+    public string Origin => IsLinkedToLead ? "Lead confirmado" : "Manual";
+    public Student? Model => _model;
+    public LeadRow? LeadRow => _leadRow;
+
+    public string FechaRegistro
+    {
+        get => _fechaRegistro;
+        set
+        {
+            if (!SetProperty(ref _fechaRegistro, value)) return;
+            if (_model == null) return;
+            _model.FechaRegistro = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string Curso
+    {
+        get => _curso;
+        set
+        {
+            if (!SetProperty(ref _curso, value)) return;
+            if (_model != null)
+            {
+                _model.Curso = value;
+                _onChanged?.Invoke();
+            }
+            OnPropertyChanged(nameof(CursoDisplay));
+        }
+    }
+
+    public string Plataforma
+    {
+        get => _plataforma;
+        set
+        {
+            if (!SetProperty(ref _plataforma, value)) return;
+            if (_model == null) return;
+            _model.Plataforma = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string SituacionLaboral
+    {
+        get => _situacionLaboral;
+        set
+        {
+            if (!SetProperty(ref _situacionLaboral, value)) return;
+            if (_model == null) return;
+            _model.SituacionLaboral = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string NivelEstudios
+    {
+        get => _nivelEstudios;
+        set
+        {
+            if (!SetProperty(ref _nivelEstudios, value)) return;
+            if (_model == null) return;
+            _model.NivelEstudios = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string Nombre
+    {
+        get => _nombre;
+        set
+        {
+            if (!SetProperty(ref _nombre, value)) return;
+            if (_model == null) return;
+            _model.Nombre = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string Email
+    {
+        get => _email;
+        set
+        {
+            if (!SetProperty(ref _email, value)) return;
+            if (_model == null) return;
+            _model.Email = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string Telefono
+    {
+        get => _telefono;
+        set
+        {
+            if (!SetProperty(ref _telefono, value)) return;
+            if (_model == null) return;
+            _model.Telefono = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string Provincia
+    {
+        get => _provincia;
+        set
+        {
+            if (!SetProperty(ref _provincia, value)) return;
+            if (_model == null) return;
+            _model.Provincia = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public bool AceptaPublicidad
+    {
+        get => _aceptaPublicidad;
+        set
+        {
+            if (!SetProperty(ref _aceptaPublicidad, value)) return;
+            if (_model == null) return;
+            _model.AceptaPublicidad = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string Observaciones
+    {
+        get => _observaciones;
+        set
+        {
+            if (!SetProperty(ref _observaciones, value)) return;
+            if (_model == null) return;
+            _model.Observaciones = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string Contacto
+    {
+        get => _contacto;
+        set
+        {
+            if (!SetProperty(ref _contacto, value)) return;
+            if (_model == null) return;
+            _model.Contacto = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string Inscripcion
+    {
+        get => _inscripcion;
+        set
+        {
+            if (!SetProperty(ref _inscripcion, value)) return;
+            if (_model == null) return;
+            _model.Inscripcion = value;
+            _onChanged?.Invoke();
+        }
+    }
+
+    public string CursoDisplay => IsLinkedToLead ? _leadRow!.NombreCurso : Curso;
+    public string CursoRaw => _leadRow?.Lead.Curso ?? Curso;
+
+    public StudentEntry(LeadRow leadRow)
+    {
+        _leadRow = leadRow;
+        _fechaRegistro = leadRow.Lead.FechaRegistro;
+        _curso = leadRow.Lead.Curso;
+        _plataforma = leadRow.Lead.Plataforma;
+        _situacionLaboral = leadRow.Lead.SituacionLaboral;
+        _nivelEstudios = leadRow.Lead.NivelEstudios;
+        _nombre = leadRow.Lead.Nombre;
+        _email = leadRow.Lead.Email;
+        _telefono = leadRow.Lead.Telefono;
+        _provincia = leadRow.Lead.Provincia;
+        _aceptaPublicidad = leadRow.Lead.AceptaPublicidad;
+        _observaciones = leadRow.Lead.Observaciones;
+        _contacto = leadRow.Lead.Contacto;
+        _inscripcion = leadRow.Lead.Inscripcion;
+    }
+
+    public StudentEntry(Student model, Action? onChanged)
+    {
+        _model = model;
+        _onChanged = onChanged;
+        _fechaRegistro = model.FechaRegistro;
+        _curso = model.Curso;
+        _plataforma = model.Plataforma;
+        _situacionLaboral = model.SituacionLaboral;
+        _nivelEstudios = model.NivelEstudios;
+        _nombre = model.Nombre;
+        _email = model.Email;
+        _telefono = model.Telefono;
+        _provincia = model.Provincia;
+        _aceptaPublicidad = model.AceptaPublicidad;
+        _observaciones = model.Observaciones;
+        _contacto = model.Contacto;
+        _inscripcion = model.Inscripcion;
+    }
+}
+
 // ─── LeadRow (Lead + estado de UI) ──────────────────────────────────────────
 public partial class LeadRow : ObservableObject
 {
@@ -123,7 +369,9 @@ public class CourseInfo
     public string   AsuntoEmail            { get; set; } = "";
     public string   TextoMarketing         { get; set; } = "";
     public string   TextoMarketingRich     { get; set; } = "";
+    public string   TextoInicioCurso       { get; set; } = "";
     public string   TextoWhatsApp          { get; set; } = "";   // Nuevo: Texto para WhatsApp
+    public string   TextoSocial            { get; set; } = "";   // Texto para redes sociales
     public string   RequisitosAcceso       { get; set; } = "";
     public string   DocumentacionNecesaria { get; set; } = "";
     public string   FechaInicio            { get; set; } = "";
@@ -170,6 +418,7 @@ public class AppData
 {
     public SmtpConfig       SmtpConfig  { get; set; } = new();
     public List<CourseInfo> Courses     { get; set; } = new();
+    public List<Student>    Students    { get; set; } = new();
     public List<SentRecord> SentRecords { get; set; } = new();
     /// <summary>LeadKey → estado persistido (solo se almacena si difiere de Pendiente).</summary>
     public Dictionary<string, LeadStatus> LeadStatusOverrides { get; set; } = new();

@@ -16,6 +16,7 @@ public class DataService
     public AppData     Data        => _data;
     public SmtpConfig  SmtpConfig  => _data.SmtpConfig;
     public List<CourseInfo>  Courses     => _data.Courses;
+    public List<Student>     Students    => _data.Students;
     public List<SentRecord>  SentRecords => _data.SentRecords;
 
     public DataService() => Load();
@@ -313,7 +314,9 @@ public class DataService
         dst.AsuntoEmail            = src.AsuntoEmail;
         dst.TextoMarketing         = src.TextoMarketing;
         dst.TextoMarketingRich     = src.TextoMarketingRich;
+        dst.TextoInicioCurso       = src.TextoInicioCurso;
         dst.TextoWhatsApp          = src.TextoWhatsApp;
+        dst.TextoSocial            = src.TextoSocial;
         dst.RequisitosAcceso       = src.RequisitosAcceso;
         dst.DocumentacionNecesaria = src.DocumentacionNecesaria;
         dst.FechaInicio            = src.FechaInicio;
@@ -331,6 +334,7 @@ public class DataService
         data.SmtpConfig.MaxSendsPerSession = Math.Max(0, data.SmtpConfig.MaxSendsPerSession);
         data.SmtpConfig.MaxSendsPerDay = Math.Max(0, data.SmtpConfig.MaxSendsPerDay);
         data.Courses ??= new List<CourseInfo>();
+        data.Students ??= new List<Student>();
         data.SentRecords ??= new List<SentRecord>();
         data.LeadStatusOverrides ??= new Dictionary<string, LeadStatus>();
         data.LeadLabels ??= new Dictionary<string, LeadLabel>();
