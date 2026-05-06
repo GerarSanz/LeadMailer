@@ -4,6 +4,7 @@ using LeadMailer.Helpers;
 using LeadMailer.Models;
 using LeadMailer.Services;
 using Microsoft.Win32;
+using OfficeOpenXml;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -88,6 +89,7 @@ namespace LeadMailer.ViewModels
         [ObservableProperty] private string _newStudentInscripcion = "";
         [ObservableProperty] private string _newStudentFechaRegistro = "";
         [ObservableProperty] private bool _newStudentAceptaPublicidad = true;
+        [ObservableProperty] private bool _isAddStudentDialogOpen;
 
         [ObservableProperty] private ObservableCollection<LeadRow> _legacyLeads = new();
         [ObservableProperty] private string _legacyExcelFilePath = "";
@@ -124,9 +126,33 @@ namespace LeadMailer.ViewModels
         }
 
         [RelayCommand]
+        private void OpenAddStudentDialog()
+        {
+            IsAddStudentDialogOpen = true;
+            if (string.IsNullOrWhiteSpace(NewStudentFechaRegistro))
+                NewStudentFechaRegistro = DateTime.Now.ToString("dd/MM/yyyy");
+
+            var selectedCourse = GetSelectedCourseForNewStudent();
+            if (!string.IsNullOrWhiteSpace(selectedCourse))
+                NewStudentCurso = selectedCourse;
+        }
+
+        [RelayCommand]
+        private void CancelAddStudentDialog()
+        {
+            IsAddStudentDialogOpen = false;
+            ClearNewStudentFields();
+        }
+
+        [RelayCommand]
         private void AddStudent()
         {
-            if (string.IsNullOrWhiteSpace(NewStudentNombre) || string.IsNullOrWhiteSpace(NewStudentCurso))
+            var selectedCourse = GetSelectedCourseForNewStudent();
+            var courseToSave = string.IsNullOrWhiteSpace(selectedCourse)
+                ? NewStudentCurso
+                : selectedCourse;
+
+            if (string.IsNullOrWhiteSpace(NewStudentNombre) || string.IsNullOrWhiteSpace(courseToSave))
             {
                 StatusMessage = "Completa al menos nombre y curso del alumno.";
                 return;
@@ -137,7 +163,7 @@ namespace LeadMailer.ViewModels
                 Nombre = NewStudentNombre.Trim(),
                 Email = NewStudentEmail.Trim(),
                 Telefono = NewStudentTelefono.Trim(),
-                Curso = NewStudentCurso.Trim(),
+                Curso = courseToSave.Trim(),
                 Plataforma = NewStudentPlataforma.Trim(),
                 SituacionLaboral = NewStudentSituacionLaboral.Trim(),
                 NivelEstudios = NewStudentNivelEstudios.Trim(),
@@ -155,7 +181,17 @@ namespace LeadMailer.ViewModels
             _data.Save();
             RefreshStudents();
             ClearNewStudentFields();
+            IsAddStudentDialogOpen = false;
             StatusMessage = $"✓  Alumno '{student.Nombre}' añadido.";
+        }
+
+        private string GetSelectedCourseForNewStudent()
+        {
+            if (string.IsNullOrWhiteSpace(SelectedStudentCourseFilter)
+                || SelectedStudentCourseFilter == "Todos")
+                return string.Empty;
+
+            return SelectedStudentCourseFilter.Trim();
         }
 
         [RelayCommand]
@@ -301,7 +337,12 @@ namespace LeadMailer.ViewModels
                     continue;
                 }
 
-                if (TryOpenWhatsApp(student, course)) opened++;
+                if (TryOpenWhatsApp(student, course))
+                {
+                    opened++;
+                    if (student.LeadRow != null)
+                        MarkLeadWhatsAppOpened(student.LeadRow, DateTime.Now);
+                }
                 else invalid++;
             }
 
@@ -312,14 +353,28 @@ namespace LeadMailer.ViewModels
         }
 
         public IReadOnlyList<string> StatusFilterOptions { get; } =
-            new[] { "Todos", "Pendiente", "Enviado", "Duplicado", "Email inválido", "Incidencias", "Interesado", "Confirmado", "Descartado", "Seguimiento hoy" };
+            new[] { "Todos", "Pendiente", "Email Enviado", "WhatsApp Enviado", "Ambos Enviados", "Incidencias", "Seguimiento hoy" };
 
         public IReadOnlyList<LabelOption> LeadLabelOptions { get; } = new LabelOption[]
         {
             new(LeadLabel.Ninguna,    "—"),
-            new(LeadLabel.Interesado, "Interesado"),
-            new(LeadLabel.Confirmado, "Confirmado"),
-            new(LeadLabel.Descartado, "Descartado"),
+            new(LeadLabel.InscritoPruebaNivel, "00 - Inscrito prueba nivel"),
+            new(LeadLabel.Solicitado, "01 - Solicitado"),
+            new(LeadLabel.Simultaneidad, "02 - Simultaneidad"),
+            new(LeadLabel.Reserva, "03 - Reserva"),
+            new(LeadLabel.ConfirmaSi, "04 - Confirma SI"),
+            new(LeadLabel.DescartadoSuperaHorasCursoCerrado, "05 - Descartado supera horas / Curso cerrado"),
+            new(LeadLabel.DescartadoNoInteresa, "06 - Descartado no interesa"),
+            new(LeadLabel.DescartadoColectivo, "07 - Descartado colectivo"),
+            new(LeadLabel.DescartadoPorSector, "08 - Descartado por sector"),
+            new(LeadLabel.Inscrito, "09 - Inscrito"),
+            new(LeadLabel.Realizado, "10 - Realizado"),
+            new(LeadLabel.NoIniciaConectaAsiste, "11 - No inicia (conecta/asiste)"),
+            new(LeadLabel.DescartadoPorTitulacion, "12 - Descartado por titulación"),
+            new(LeadLabel.NoLocalizado, "13 - No localizado"),
+            new(LeadLabel.BajaLopd, "14 - Baja LOPD"),
+            new(LeadLabel.DescartadoPruebaCompetencia, "15 - Descartado Prueba de Competencia"),
+            new(LeadLabel.Erroneo, "16 - Erróneo"),
         };
 
         public IReadOnlyList<string> HistoryStatusFilterOptions { get; } =
@@ -415,8 +470,11 @@ namespace LeadMailer.ViewModels
                 foreach (var lead in rawLeads)
                 {
                     var course       = _data.GetOrCreateCourse(lead.Curso);
-                    bool alreadySent = _data.HasBeenSent(lead);
                     var  key         = _data.BuildLeadKey(lead);
+                    var emailSentAt  = _data.GetLeadEmailSentAt(key) ?? _data.GetLastSuccessfulEmailSentAt(key, lead.Curso);
+                    var whatsAppSentAt = _data.GetLeadWhatsAppSentAt(key);
+                    var phoneCalledAt = _data.GetLeadPhoneCalledAt(key);
+                    var handledBy   = _data.GetLeadHandledBy(key);
                     var  label       = _data.GetLeadLabel(key);
                     var note         = _data.GetLeadNote(key);
                     var nextContact  = _data.GetLeadNextContact(key);
@@ -424,10 +482,15 @@ namespace LeadMailer.ViewModels
                     if (!IsCourseConfigured(course) && !newCourses.Contains(lead.Curso))
                         newCourses.Add(lead.Curso);
 
-                    Leads.Add(new LeadRow(
+                    LeadRow row = null!;
+                    row = new LeadRow(
                         lead: lead,
                         course: course,
-                        alreadySent: alreadySent,
+                        alreadySent: emailSentAt.HasValue,
+                        emailSentAt: emailSentAt,
+                        whatsAppSentAt: whatsAppSentAt,
+                        phoneCalledAt: phoneCalledAt,
+                        handledBy: handledBy,
                         label: label,
                         note: note,
                         onNoteChanged: n => _data.SetLeadNote(key, n),
@@ -441,10 +504,13 @@ namespace LeadMailer.ViewModels
                         onLabelChanged: l =>
                         {
                             _data.SetLeadLabel(key, l);
+                            MarkLeadHandled(row);
                             UpdateCounts();
                             RefreshFilter();
                             RefreshStudents();
-                        }));
+                        },
+                        onPhoneCalledAtChanged: calledAt => _data.SetLeadPhoneCalledAt(key, calledAt));
+                    Leads.Add(row);
                 }
                 RefreshCourses();
                 MarkDuplicatesForRows(Leads);
@@ -495,17 +561,31 @@ namespace LeadMailer.ViewModels
                         NombreCorto = string.IsNullOrWhiteSpace(lead.Curso) ? "(Sin curso histórico)" : lead.Curso.Trim()
                     };
                     var key = _data.BuildLeadKey(lead);
+                    var emailSentAt = _data.GetLastSuccessfulEmailSentAt(key, LegacySelectedCampaignCourse?.CursoRaw);
+                    var whatsAppSentAt = _data.GetLeadWhatsAppSentAt(key);
+                    var phoneCalledAt = _data.GetLeadPhoneCalledAt(key);
+                    var handledBy = _data.GetLeadHandledBy(key);
 
-                    var row = new LeadRow(
+                    LeadRow row = null!;
+                    row = new LeadRow(
                         lead: lead,
                         course: course,
-                        alreadySent: _data.HasBeenSentForCourse(lead, LegacySelectedCampaignCourse?.CursoRaw),
+                        alreadySent: emailSentAt.HasValue,
+                        emailSentAt: emailSentAt,
+                        whatsAppSentAt: whatsAppSentAt,
+                        phoneCalledAt: phoneCalledAt,
+                        handledBy: handledBy,
                         label: _data.GetLeadLabel(key),
                         note: _data.GetLeadNote(key),
                         onNoteChanged: n => _data.SetLeadNote(key, n),
                         nextContact: _data.GetLeadNextContact(key),
                         onNextContactChanged: n => _data.SetLeadNextContact(key, n),
-                        onLabelChanged: l => _data.SetLeadLabel(key, l));
+                        onLabelChanged: l =>
+                        {
+                            _data.SetLeadLabel(key, l);
+                            MarkLeadHandled(row);
+                        },
+                        onPhoneCalledAtChanged: calledAt => _data.SetLeadPhoneCalledAt(key, calledAt));
 
                     row.PropertyChanged += OnLegacyLeadPropertyChanged;
                     LegacyLeads.Add(row);
@@ -651,7 +731,11 @@ namespace LeadMailer.ViewModels
             int opened = 0, invalid = 0;
             foreach (var row in selected)
             {
-                if (TryOpenWhatsApp(row, LegacySelectedCampaignCourse)) opened++;
+                if (TryOpenWhatsApp(row, LegacySelectedCampaignCourse))
+                {
+                    opened++;
+                    MarkLeadWhatsAppOpened(row, DateTime.Now);
+                }
                 else invalid++;
             }
 
@@ -911,7 +995,14 @@ namespace LeadMailer.ViewModels
         [RelayCommand]
         private void ExportFilteredLeads()
         {
-            var rows = FilteredLeads?.Cast<LeadRow>().ToList() ?? new List<LeadRow>();
+            var visibleRows = FilteredLeads?.Cast<LeadRow>().ToList() ?? new List<LeadRow>();
+            if (!TryGetReportFromDate(out var fromDate, out var dateError))
+            {
+                StatusMessage = dateError!;
+                return;
+            }
+
+            var rows = ApplyReportFromDateFilter(visibleRows, fromDate);
             if (rows.Count == 0)
             {
                 StatusMessage = "No hay leads filtrados para exportar.";
@@ -927,18 +1018,289 @@ namespace LeadMailer.ViewModels
             if (dlg.ShowDialog() != true) return;
 
             var sb = new StringBuilder();
-            sb.AppendLine("Estado,Nombre,Email,Curso,Plataforma,Provincia,SituacionLaboral,Telefono,NotaSeguimiento,ProximoContacto");
+            sb.AppendLine("Estado,Etiqueta,Captadora,Nombre,Email,Curso,Plataforma,Provincia,SituacionLaboral,Telefono,FechaLead,EmailEnviado,WhatsAppEnviado,LlamadoTelefono,FechaLlamadaTelefono,FechaEnvioEmail,FechaEnvioWhatsApp,NotaSeguimiento,ProximoContacto");
             foreach (var r in rows)
             {
                 sb.AppendLine(string.Join(",",
-                    Csv(r.EstadoTexto), Csv(r.Nombre), Csv(r.Email), Csv(r.NombreCurso),
+                    Csv(r.EstadoTexto), Csv(GetLeadLabelDisplay(r.Label)), Csv(r.HandledBy), Csv(r.Nombre), Csv(r.Email), Csv(r.NombreCurso),
                     Csv(r.Plataforma), Csv(r.Provincia), Csv(r.SituacionLaboral), Csv(r.Telefono),
+                    Csv(r.Lead.FechaRegistro),
+                    Csv(r.EmailSentAt.HasValue ? "Sí" : "No"),
+                    Csv(r.WhatsAppSentAt.HasValue ? "Sí" : "No"),
+                    Csv(r.PhoneCalledAt.HasValue ? "Sí" : "No"),
+                    Csv(r.PhoneCalledAt?.ToString("dd/MM/yyyy HH:mm") ?? string.Empty),
+                    Csv(r.EmailSentAt?.ToString("dd/MM/yyyy HH:mm") ?? string.Empty),
+                    Csv(r.WhatsAppSentAt?.ToString("dd/MM/yyyy HH:mm") ?? string.Empty),
                     Csv(r.Note), Csv(r.NextContact)));
             }
 
             File.WriteAllText(dlg.FileName, sb.ToString(), Encoding.UTF8);
             StatusMessage = $"✓  Exportados {rows.Count} leads a CSV.";
         }
+
+        [RelayCommand]
+        private void ExportFilteredLeadsExcel()
+        {
+            var visibleRows = FilteredLeads?.Cast<LeadRow>().ToList() ?? new List<LeadRow>();
+            if (!TryGetReportFromDate(out var fromDate, out var dateError))
+            {
+                StatusMessage = dateError!;
+                return;
+            }
+
+            var rows = ApplyReportFromDateFilter(visibleRows, fromDate);
+            if (rows.Count == 0)
+            {
+                StatusMessage = "No hay leads filtrados para exportar.";
+                return;
+            }
+
+            var dlg = new SaveFileDialog
+            {
+                Filter = "Excel|*.xlsx",
+                FileName = $"leads_{DateTime.Now:yyyyMMdd_HHmm}.xlsx",
+                Title = "Exportar leads filtrados a Excel"
+            };
+            if (dlg.ShowDialog() != true) return;
+            File.WriteAllBytes(dlg.FileName, BuildLeadsReportExcelBytes(rows));
+            StatusMessage = $"✓  Exportados {rows.Count} leads a Excel.";
+        }
+
+        public async Task<bool> SendClosingLeadsReportAsync(bool showStatus = false)
+        {
+            try
+            {
+                var toEmail = (SmtpConfig.CloseReportRecipientEmail ?? string.Empty).Trim();
+                if (string.IsNullOrWhiteSpace(toEmail))
+                {
+                    if (showStatus) StatusMessage = "Define el email de reporte de cierre en Configuración.";
+                    return false;
+                }
+
+                if (Leads.Count == 0)
+                {
+                    if (showStatus) StatusMessage = "No hay leads cargados para generar el reporte.";
+                    return false;
+                }
+
+                if (!SmtpOkForBackground())
+                {
+                    if (showStatus) StatusMessage = "Completa la configuración SMTP antes de enviar el reporte.";
+                    return false;
+                }
+
+                if (!TryGetReportFromDate(out var fromDate, out var dateError))
+                {
+                    AppLogger.Warn(dateError ?? "Fecha de reporte no válida.");
+                    if (showStatus) StatusMessage = dateError ?? "Fecha de reporte no válida.";
+                    return false;
+                }
+
+                var rows = ApplyReportFromDateFilter(Leads.ToList(), fromDate);
+                if (rows.Count == 0)
+                {
+                    if (showStatus) StatusMessage = "No hay leads en el rango de fecha configurado para el reporte.";
+                    return false;
+                }
+
+                var now = DateTime.Now;
+                var captadora = GetCurrentCaptadoraName();
+                var subject = string.IsNullOrWhiteSpace(captadora)
+                    ? $"Reporte de Leads {now:dd/MM/yyyy HH:mm}"
+                    : $"Reporte de Leads {captadora} {now:dd/MM/yyyy HH:mm}";
+
+                var attachmentName = $"{BuildClosingReportFileNameBase()}.xlsx";
+                var attachmentBytes = BuildLeadsReportExcelBytes(rows);
+                var body = "Adjunto se envía el reporte automático de leads al cierre de la aplicación.";
+
+                var (success, error) = await _emailService.SendReportAsync(
+                    SmtpConfig,
+                    toEmail,
+                    subject,
+                    body,
+                    attachmentName,
+                    attachmentBytes);
+
+                if (success)
+                {
+                    AppLogger.Info($"Reporte automático de leads enviado a {toEmail}.");
+                    if (showStatus) StatusMessage = $"✓  Reporte de leads enviado a {toEmail}.";
+                    return true;
+                }
+                else
+                {
+                    AppLogger.Warn($"No se pudo enviar el reporte automático de leads: {error}");
+                    if (showStatus) StatusMessage = $"✗  No se pudo enviar el reporte: {error}";
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error("Error al enviar reporte automático de leads al cierre.", ex);
+                if (showStatus) StatusMessage = $"✗  Error al enviar reporte: {ex.Message}";
+                return false;
+            }
+        }
+
+        [RelayCommand]
+        private async Task SendClosingLeadsReportManual()
+        {
+            await SendClosingLeadsReportAsync(showStatus: true);
+        }
+
+        [RelayCommand]
+        private void DownloadClosingLeadsReport()
+        {
+            if (!TryGetReportFromDate(out var fromDate, out var dateError))
+            {
+                StatusMessage = dateError!;
+                return;
+            }
+
+            var rows = ApplyReportFromDateFilter(Leads.ToList(), fromDate);
+            if (rows.Count == 0)
+            {
+                StatusMessage = "No hay leads en el rango de fecha configurado para generar el reporte.";
+                return;
+            }
+
+            var now = DateTime.Now;
+            var dlg = new SaveFileDialog
+            {
+                Filter = "Excel|*.xlsx",
+                FileName = $"{BuildClosingReportFileNameBase()}.xlsx",
+                Title = "Guardar reporte de leads"
+            };
+
+            if (dlg.ShowDialog() != true) return;
+
+            File.WriteAllBytes(dlg.FileName, BuildLeadsReportExcelBytes(rows));
+            StatusMessage = $"✓  Reporte guardado en: {dlg.FileName}";
+        }
+
+        private bool TryGetReportFromDate(out DateTime? fromDate, out string? error)
+        {
+            fromDate = null;
+            error = null;
+
+            var raw = (SmtpConfig.ReportFromDateText ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(raw)) return true;
+
+            var formats = new[]
+            {
+                "dd/MM/yyyy", "d/M/yyyy", "dd/MM/yy", "d/M/yy",
+                "dd-MM-yyyy", "d-M-yyyy", "yyyy-MM-dd",
+                "dd/MM/yyyy HH:mm", "d/M/yyyy H:mm"
+            };
+
+            if (DateTime.TryParseExact(raw, formats, new CultureInfo("es-ES"), DateTimeStyles.AssumeLocal, out var parsed)
+                || DateTime.TryParse(raw, new CultureInfo("es-ES"), DateTimeStyles.AssumeLocal, out parsed)
+                || DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out parsed))
+            {
+                fromDate = parsed.Date;
+                return true;
+            }
+
+            error = "Formato de 'Fecha desde reporte' no válido. Usa por ejemplo: 25/03/2026";
+            return false;
+        }
+
+        private List<LeadRow> ApplyReportFromDateFilter(IEnumerable<LeadRow> sourceRows, DateTime? fromDate)
+        {
+            var rows = sourceRows.ToList();
+            if (!fromDate.HasValue) return rows;
+
+            return rows.Where(r =>
+            {
+                var leadDate = ParseLeadDate(r.Lead.FechaRegistro);
+                return leadDate.HasValue && leadDate.Value.Date >= fromDate.Value.Date;
+            }).ToList();
+        }
+
+        private static DateTime? ParseLeadDate(string? value)
+        {
+            var raw = (value ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+
+            var formats = new[]
+            {
+                "dd/MM/yyyy", "d/M/yyyy", "dd/MM/yy", "d/M/yy",
+                "dd-MM-yyyy", "d-M-yyyy", "yyyy-MM-dd",
+                "dd/MM/yyyy HH:mm", "d/M/yyyy H:mm", "dd-MM-yyyy HH:mm", "yyyy-MM-dd HH:mm:ss"
+            };
+
+            if (DateTime.TryParseExact(raw, formats, new CultureInfo("es-ES"), DateTimeStyles.AssumeLocal, out var dt)
+                || DateTime.TryParse(raw, new CultureInfo("es-ES"), DateTimeStyles.AssumeLocal, out dt)
+                || DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out dt))
+                return dt;
+
+            return null;
+        }
+
+        private string BuildClosingReportFileNameBase()
+        {
+            var captadora = GetCurrentCaptadoraName();
+            var namePart = string.IsNullOrWhiteSpace(captadora) ? string.Empty : "_" + captadora.Trim();
+            var baseName = $"Leads_Asturias{namePart}";
+
+            foreach (var invalid in Path.GetInvalidFileNameChars())
+                baseName = baseName.Replace(invalid, '_');
+
+            return baseName;
+        }
+
+        private byte[] BuildLeadsReportExcelBytes(IReadOnlyList<LeadRow> rows)
+        {
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Leads");
+
+            var headers = new[]
+            {
+                "Estado", "Etiqueta", "Captadora", "Nombre", "Email", "Curso", "Plataforma", "Provincia", "SituacionLaboral", "Telefono",
+                "FechaLead", "EmailEnviado", "WhatsAppEnviado", "LlamadoTelefono", "FechaLlamadaTelefono", "FechaEnvioEmail", "FechaEnvioWhatsApp",
+                "NotaSeguimiento", "ProximoContacto"
+            };
+
+            for (int i = 0; i < headers.Length; i++)
+                ws.Cells[1, i + 1].Value = headers[i];
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var r = rows[i];
+                var row = i + 2;
+                ws.Cells[row, 1].Value = r.EstadoTexto;
+                ws.Cells[row, 2].Value = GetLeadLabelDisplay(r.Label);
+                ws.Cells[row, 3].Value = r.HandledBy;
+                ws.Cells[row, 4].Value = r.Nombre;
+                ws.Cells[row, 5].Value = r.Email;
+                ws.Cells[row, 6].Value = r.NombreCurso;
+                ws.Cells[row, 7].Value = r.Plataforma;
+                ws.Cells[row, 8].Value = r.Provincia;
+                ws.Cells[row, 9].Value = r.SituacionLaboral;
+                ws.Cells[row, 10].Value = r.Telefono;
+                ws.Cells[row, 11].Value = r.Lead.FechaRegistro;
+                ws.Cells[row, 12].Value = r.EmailSentAt.HasValue ? "Sí" : "No";
+                ws.Cells[row, 13].Value = r.WhatsAppSentAt.HasValue ? "Sí" : "No";
+                ws.Cells[row, 14].Value = r.PhoneCalledAt.HasValue ? "Sí" : "No";
+                ws.Cells[row, 15].Value = r.PhoneCalledAt?.ToString("dd/MM/yyyy HH:mm") ?? string.Empty;
+                ws.Cells[row, 16].Value = r.EmailSentAt?.ToString("dd/MM/yyyy HH:mm") ?? string.Empty;
+                ws.Cells[row, 17].Value = r.WhatsAppSentAt?.ToString("dd/MM/yyyy HH:mm") ?? string.Empty;
+                ws.Cells[row, 18].Value = r.Note;
+                ws.Cells[row, 19].Value = r.NextContact;
+            }
+
+            if (ws.Dimension != null)
+                ws.Cells[ws.Dimension.Address].AutoFitColumns();
+
+            return package.GetAsByteArray();
+        }
+
+        private bool SmtpOkForBackground()
+            => !string.IsNullOrWhiteSpace(SmtpConfig.Host)
+               && SmtpConfig.Port > 0
+               && !string.IsNullOrWhiteSpace(SmtpConfig.Username)
+               && !string.IsNullOrWhiteSpace(SmtpConfig.Password)
+               && (!string.IsNullOrWhiteSpace(SmtpConfig.FromEmail) || !string.IsNullOrWhiteSpace(SmtpConfig.Username));
 
         [RelayCommand]
         private void ExportLeadIssuesCsv()
@@ -1066,7 +1428,7 @@ namespace LeadMailer.ViewModels
         {
             if (row == null) return;
             var previousLabel = row.Label;
-            row.Label = row.Label == LeadLabel.Descartado ? LeadLabel.Ninguna : LeadLabel.Descartado;
+            row.Label = row.IsDiscarded ? LeadLabel.Ninguna : LeadLabel.DescartadoNoInteresa;
             RegisterUndo(
                 $"Cambio de etiqueta en '{row.Nombre}'",
                 () =>
@@ -1550,15 +1912,12 @@ namespace LeadMailer.ViewModels
                 var match = SelectedStatusFilter switch
                 {
                     "Pendiente"        => row.Status == LeadStatus.Pendiente,
-                    "Enviado"          => row.Status == LeadStatus.Enviado,
-                    "Duplicado"        => row.IsDuplicate,
-                    "Email inválido"   => row.IsInvalidEmail,
+                    "Email Enviado"    => row.Status == LeadStatus.EmailEnviado,
+                    "WhatsApp Enviado" => row.Status == LeadStatus.WhatsAppEnviado,
+                    "Ambos Enviados"   => row.Status == LeadStatus.AmbosEnviados,
                     "Incidencias"      => row.IsDuplicate || row.IsInvalidEmail || !IsCourseConfigured(row.Course),
-                    "Interesado"       => row.Label  == LeadLabel.Interesado,
-                    "Confirmado"       => row.Label  == LeadLabel.Confirmado,
-                    "Descartado"       => row.Status == LeadStatus.Descartado,
                     "Seguimiento hoy"  => IsFollowUpToday(row.NextContact),
-                    _                  => true
+                    _                   => true
                 };
                 if (!match) return false;
             }
@@ -1782,7 +2141,7 @@ namespace LeadMailer.ViewModels
             foreach (var course in Courses.Where(IsCourseConfigured).OrderBy(c => c.NombreCorto))
                 AddStudentCourseFilterOption(course.NombreCorto);
 
-            foreach (var lead in Leads.Where(l => l.Label == LeadLabel.Confirmado))
+            foreach (var lead in Leads.Where(l => l.Label == LeadLabel.ConfirmaSi))
             {
                 var row = new StudentEntry(lead);
                 RegisterStudentRow(row);
@@ -1827,10 +2186,12 @@ namespace LeadMailer.ViewModels
 
             foreach (var row in LegacyLeads)
             {
-                var sentForSelectedCourse = _data.HasBeenSentForCourse(row.Lead, selectedCourseRaw);
-                row.AlreadySent = sentForSelectedCourse;
+                var key = _data.BuildLeadKey(row.Lead);
+                var emailSentAt = _data.GetLastSuccessfulEmailSentAt(key, selectedCourseRaw);
+                row.EmailSentAt = emailSentAt;
+                row.AlreadySent = emailSentAt.HasValue;
 
-                if (sentForSelectedCourse && row.IsSelected)
+                if (emailSentAt.HasValue && row.IsSelected)
                     row.IsSelected = false;
             }
         }
@@ -1950,24 +2311,16 @@ namespace LeadMailer.ViewModels
                 row.IsInvalidEmail = !IsValidEmail(row.Email);
             }
 
-            var emailGroups = list
-                .Where(r => !string.IsNullOrWhiteSpace(r.Email))
-                .GroupBy(r => r.Email.Trim().ToLowerInvariant())
+            static string N(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant();
+
+            var emailAndCourseGroups = list
+                .Where(r => !string.IsNullOrWhiteSpace(r.Email) && !string.IsNullOrWhiteSpace(r.Lead.Curso))
+                .GroupBy(r => (Email: N(r.Email), Curso: N(r.Lead.Curso)))
                 .Where(g => g.Count() > 1);
 
-            foreach (var group in emailGroups)
+            foreach (var group in emailAndCourseGroups)
                 foreach (var row in group)
                     row.IsDuplicate = true;
-
-            var phoneGroups = list
-                .Select(r => new { Row = r, Phone = NormalizePhoneForDuplicate(r.Telefono) })
-                .Where(x => !string.IsNullOrWhiteSpace(x.Phone))
-                .GroupBy(x => x.Phone)
-                .Where(g => g.Count() > 1);
-
-            foreach (var group in phoneGroups)
-                foreach (var item in group)
-                    item.Row.IsDuplicate = true;
         }
 
         private static string NormalizePhoneForDuplicate(string? phone)
@@ -2103,7 +2456,7 @@ namespace LeadMailer.ViewModels
         private void UpdateCounts()
         {
             PendingCount      = Leads.Count(l => l.Status == LeadStatus.Pendiente);
-            SentCount         = Leads.Count(l => l.Status == LeadStatus.Enviado);
+            SentCount         = Leads.Count(l => l.EmailSentAt.HasValue);
             FollowUpTodayCount = Leads.Count(l => IsFollowUpToday(l.NextContact));
         }
 
@@ -2312,9 +2665,9 @@ namespace LeadMailer.ViewModels
         private string GetLabelTemplate(LeadLabel label)
             => label switch
             {
-                LeadLabel.Interesado => _data.SmtpConfig.LabelTemplateInteresado ?? string.Empty,
-                LeadLabel.Confirmado => _data.SmtpConfig.LabelTemplateConfirmado ?? string.Empty,
-                LeadLabel.Descartado => _data.SmtpConfig.LabelTemplateDescartado ?? string.Empty,
+                LeadLabel.Solicitado => _data.SmtpConfig.LabelTemplateInteresado ?? string.Empty,
+                LeadLabel.ConfirmaSi => _data.SmtpConfig.LabelTemplateConfirmado ?? string.Empty,
+                _ when label.IsDiscardLabel() => _data.SmtpConfig.LabelTemplateDescartado ?? string.Empty,
                 _ => string.Empty
             };
 
@@ -2365,6 +2718,43 @@ namespace LeadMailer.ViewModels
             return await SendLeadWithCourseAsync(row, course, forceSend, row.Lead.Curso);
         }
 
+        private void MarkLeadEmailSent(LeadRow row, DateTime sentAt)
+        {
+            var key = _data.BuildLeadKey(row.Lead);
+            row.EmailSentAt = sentAt;
+            _data.SetLeadEmailSentAt(key, sentAt);
+            MarkLeadHandled(row);
+            UpdateCounts();
+            RefreshFilter();
+        }
+
+        private void MarkLeadWhatsAppOpened(LeadRow row, DateTime sentAt)
+        {
+            var key = _data.BuildLeadKey(row.Lead);
+            row.WhatsAppSentAt = sentAt;
+            _data.SetLeadWhatsAppSentAt(key, sentAt);
+            MarkLeadHandled(row);
+            UpdateCounts();
+            RefreshFilter();
+        }
+
+        private void MarkLeadHandled(LeadRow row)
+        {
+            var handledBy = GetCurrentCaptadoraName();
+            if (string.IsNullOrWhiteSpace(handledBy)) return;
+
+            var key = _data.BuildLeadKey(row.Lead);
+            row.HandledBy = handledBy;
+            _data.SetLeadHandledBy(key, handledBy);
+        }
+
+        private string GetCurrentCaptadoraName()
+        {
+            var nombre = (SmtpConfig.CaptadoraNombre ?? string.Empty).Trim();
+            var apellidos = (SmtpConfig.CaptadoraApellidos ?? string.Empty).Trim();
+            return string.Join(" ", new[] { nombre, apellidos }.Where(x => !string.IsNullOrWhiteSpace(x))).Trim();
+        }
+
         private async Task<(bool Success, string? Error)> SendLeadWithCourseAsync(
             LeadRow row,
             CourseInfo course,
@@ -2392,18 +2782,19 @@ namespace LeadMailer.ViewModels
 
             var effectiveCourse = ApplyLabelTemplateToCourse(course, row.Label);
             var (success, error) = await _emailService.SendAsync(row.Lead, effectiveCourse, _data.SmtpConfig);
+            var sentAt = DateTime.Now;
             _data.AddSentRecord(new SentRecord
             {
                 LeadKey    = _data.BuildLeadKey(row.Lead),
                 NombreLead = row.Lead.Nombre,
                 Email      = row.Lead.Email,
                 CursoRaw   = string.IsNullOrWhiteSpace(recordCourseRaw) ? row.Lead.Curso : recordCourseRaw,
-                FechaEnvio = DateTime.Now,
+                FechaEnvio = sentAt,
                 Success    = success,
                 Error      = error
             });
 
-            if (success) row.AlreadySent = true;
+            if (success) MarkLeadEmailSent(row, sentAt);
             RefreshHistory();
             return (success, error);
         }
@@ -2423,6 +2814,9 @@ namespace LeadMailer.ViewModels
             value ??= string.Empty;
             return $"\"{value.Replace("\"", "\"\"")}\"";
         }
+
+        private string GetLeadLabelDisplay(LeadLabel label)
+            => LeadLabelOptions.FirstOrDefault(x => x.Value == label)?.Display ?? label.ToString();
 
         private static string NormalizePhoneForWhatsApp(string phone)
         {
@@ -2506,7 +2900,11 @@ namespace LeadMailer.ViewModels
             int opened = 0, invalid = 0;
             foreach (var row in rows)
             {
-                if (TryOpenWhatsApp(row, row.Course)) opened++;
+                if (TryOpenWhatsApp(row, row.Course))
+                {
+                    opened++;
+                    MarkLeadWhatsAppOpened(row, DateTime.Now);
+                }
                 else invalid++;
             }
 
@@ -2568,7 +2966,10 @@ namespace LeadMailer.ViewModels
             if (row == null) return;
 
             if (TryOpenWhatsApp(row, row.Course))
+            {
+                MarkLeadWhatsAppOpened(row, DateTime.Now);
                 StatusMessage = $"WhatsApp abierto para {row.Nombre}.";
+            }
             else
                 StatusMessage = $"No se pudo abrir WhatsApp para {row.Nombre}: teléfono no válido.";
         }

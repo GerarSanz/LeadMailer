@@ -1,6 +1,6 @@
 ; ═══════════════════════════════════════════════════════════════════════════
 ;  LeadMailer — Script de instalador Inno Setup 6
-;  Genera: installer-output\LeadMailer_Setup_v2.2.0.exe
+;  Genera: installer-output\LeadMailer_Setup_v2.3.1.exe
 ;
 ;  Requisitos:
 ;    - Inno Setup 6  →  https://jrsoftware.org/isinfo.php
@@ -11,7 +11,7 @@
 ; ═══════════════════════════════════════════════════════════════════════════
 
 #define MyAppName        "LeadMailer"
-#define MyAppVersion     "2.2.0"
+#define MyAppVersion     "2.3.1"
 #define MyAppPublisher   "LeadMailer"
 #define MyAppURL         ""
 #define MyAppExeName     "LeadMailer.exe"

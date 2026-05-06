@@ -10,8 +10,8 @@
     <AssemblyName>LeadMailer</AssemblyName>
     <Platforms>AnyCPU</Platforms>
     <Configurations>Debug;Release</Configurations>
-    <AssemblyVersion>2.2.0.0</AssemblyVersion>
-    <FileVersion>2.2.0.0</FileVersion>
+    <AssemblyVersion>2.3.1.0</AssemblyVersion>
+    <FileVersion>2.3.1.0</FileVersion>
     <Company>LeadMailer</Company>
     <Product>LeadMailer</Product>
     <Description>Automatización de envío de correos a leads desde Excel</Description>

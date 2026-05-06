@@ -75,9 +75,10 @@ namespace LeadMailer.Converters
             => value is LeadStatus s
                 ? s switch
                 {
-                    LeadStatus.Enviado    => new SolidColorBrush(Color.FromRgb(22,  163,  74)),  // green-600
-                    LeadStatus.Descartado => new SolidColorBrush(Color.FromRgb(100, 116, 139)),  // slate-500
-                    _                     => new SolidColorBrush(Color.FromRgb(245, 158,  11))   // amber-500
+                    LeadStatus.EmailEnviado    => new SolidColorBrush(Color.FromRgb(22, 163, 74)),   // green-600
+                    LeadStatus.WhatsAppEnviado => new SolidColorBrush(Color.FromRgb(37, 99, 235)),   // blue-600
+                    LeadStatus.AmbosEnviados   => new SolidColorBrush(Color.FromRgb(124, 58, 237)),  // violet-600
+                    _                          => new SolidColorBrush(Color.FromRgb(245, 158, 11))   // amber-500
                 }
                 : new SolidColorBrush(Color.FromRgb(245, 158, 11));
         public object ConvertBack(object value, Type t, object p, CultureInfo c)
@@ -100,10 +101,24 @@ namespace LeadMailer.Converters
         public object Convert(object value, Type t, object p, CultureInfo c)
             => value is LeadLabel l ? l switch
             {
-                LeadLabel.Interesado => "Interesado",
-                LeadLabel.Confirmado => "Confirmado",
-                LeadLabel.Descartado => "Descartado",
-                _                    => "—"
+                LeadLabel.InscritoPruebaNivel                  => "00 - Inscrito prueba nivel",
+                LeadLabel.Solicitado                           => "01 - Solicitado",
+                LeadLabel.Simultaneidad                        => "02 - Simultaneidad",
+                LeadLabel.Reserva                              => "03 - Reserva",
+                LeadLabel.ConfirmaSi                           => "04 - Confirma SI",
+                LeadLabel.DescartadoSuperaHorasCursoCerrado    => "05 - Descartado supera horas / Curso cerrado",
+                LeadLabel.DescartadoNoInteresa                 => "06 - Descartado no interesa",
+                LeadLabel.DescartadoColectivo                  => "07 - Descartado colectivo",
+                LeadLabel.DescartadoPorSector                  => "08 - Descartado por sector",
+                LeadLabel.Inscrito                             => "09 - Inscrito",
+                LeadLabel.Realizado                            => "10 - Realizado",
+                LeadLabel.NoIniciaConectaAsiste                => "11 - No inicia (conecta/asiste)",
+                LeadLabel.DescartadoPorTitulacion              => "12 - Descartado por titulación",
+                LeadLabel.NoLocalizado                         => "13 - No localizado",
+                LeadLabel.BajaLopd                             => "14 - Baja LOPD",
+                LeadLabel.DescartadoPruebaCompetencia          => "15 - Descartado Prueba de Competencia",
+                LeadLabel.Erroneo                              => "16 - Erróneo",
+                _                                              => "—"
             } : "—";
         public object ConvertBack(object value, Type t, object p, CultureInfo c)
             => throw new NotImplementedException();
@@ -115,10 +130,24 @@ namespace LeadMailer.Converters
         public object Convert(object value, Type t, object p, CultureInfo c)
             => value is LeadLabel l ? l switch
             {
-                LeadLabel.Interesado => new SolidColorBrush(Color.FromRgb( 37,  99, 235)),  // blue-600
-                LeadLabel.Confirmado => new SolidColorBrush(Color.FromRgb(124,  58, 237)),  // violet-600
-                LeadLabel.Descartado => new SolidColorBrush(Color.FromRgb(100, 116, 139)),  // slate-500
-                _                    => new SolidColorBrush(Color.FromRgb(226, 232, 240))   // slate-200
+                LeadLabel.ConfirmaSi
+                    or LeadLabel.Inscrito
+                    or LeadLabel.Realizado => new SolidColorBrush(Color.FromRgb(22, 163, 74)), // green-600
+                LeadLabel.Solicitado
+                    or LeadLabel.Reserva
+                    or LeadLabel.Simultaneidad
+                    or LeadLabel.InscritoPruebaNivel => new SolidColorBrush(Color.FromRgb(37, 99, 235)), // blue-600
+                LeadLabel.DescartadoSuperaHorasCursoCerrado
+                    or LeadLabel.DescartadoNoInteresa
+                    or LeadLabel.DescartadoColectivo
+                    or LeadLabel.DescartadoPorSector
+                    or LeadLabel.DescartadoPorTitulacion
+                    or LeadLabel.BajaLopd
+                    or LeadLabel.DescartadoPruebaCompetencia
+                    or LeadLabel.Erroneo => new SolidColorBrush(Color.FromRgb(220, 38, 38)), // red-600
+                LeadLabel.NoLocalizado
+                    or LeadLabel.NoIniciaConectaAsiste => new SolidColorBrush(Color.FromRgb(217, 119, 6)), // amber-600
+                _ => new SolidColorBrush(Color.FromRgb(226, 232, 240)) // slate-200
             } : new SolidColorBrush(Color.FromRgb(226, 232, 240));
         public object ConvertBack(object value, Type t, object p, CultureInfo c)
             => throw new NotImplementedException();

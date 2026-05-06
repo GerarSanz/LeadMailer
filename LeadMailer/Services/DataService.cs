@@ -201,6 +201,56 @@ public class DataService
         Save();
     }
 
+    public DateTime? GetLeadEmailSentAt(string key)
+        => _data.LeadEmailSentAt.TryGetValue(key, out var sentAt) ? sentAt : null;
+
+    public void SetLeadEmailSentAt(string key, DateTime sentAt)
+    {
+        _data.LeadEmailSentAt[key] = sentAt;
+        Save();
+    }
+
+    public DateTime? GetLeadWhatsAppSentAt(string key)
+        => _data.LeadWhatsAppSentAt.TryGetValue(key, out var sentAt) ? sentAt : null;
+
+    public void SetLeadWhatsAppSentAt(string key, DateTime sentAt)
+    {
+        _data.LeadWhatsAppSentAt[key] = sentAt;
+        Save();
+    }
+
+    public DateTime? GetLeadPhoneCalledAt(string key)
+        => _data.LeadPhoneCalledAt.TryGetValue(key, out var calledAt) ? calledAt : null;
+
+    public void SetLeadPhoneCalledAt(string key, DateTime? calledAt)
+    {
+        if (calledAt.HasValue)
+            _data.LeadPhoneCalledAt[key] = calledAt.Value;
+        else
+            _data.LeadPhoneCalledAt.Remove(key);
+
+        Save();
+    }
+
+    public DateTime? GetLastSuccessfulEmailSentAt(string leadKey, string? courseRaw = null)
+    {
+        var records = _data.SentRecords
+            .Where(r => r.Success
+                && !string.IsNullOrWhiteSpace(r.LeadKey)
+                && string.Equals(r.LeadKey, leadKey, StringComparison.Ordinal));
+
+        if (!string.IsNullOrWhiteSpace(courseRaw))
+        {
+            var targetCourse = courseRaw.Trim();
+            records = records.Where(r => string.Equals((r.CursoRaw ?? string.Empty).Trim(), targetCourse, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return records
+            .OrderByDescending(r => r.FechaEnvio)
+            .Select(r => (DateTime?)r.FechaEnvio)
+            .FirstOrDefault();
+    }
+
     // ── Helpers estado de lead ────────────────────────────────────────────────
 
     public LeadStatus GetLeadStatus(string key)
@@ -223,8 +273,8 @@ public class DataService
     {
         if (_data.LeadLabels.TryGetValue(key, out var label)) return label;
         // Migración: datos previos guardados como Descartado en LeadStatusOverrides
-        if (_data.LeadStatusOverrides.TryGetValue(key, out var status) && status == LeadStatus.Descartado)
-            return LeadLabel.Descartado;
+        if (_data.LeadStatusOverrides.TryGetValue(key, out var status) && status != LeadStatus.Pendiente)
+            return LeadLabel.DescartadoNoInteresa;
         return LeadLabel.Ninguna;
     }
 
@@ -238,10 +288,7 @@ public class DataService
         else
         {
             _data.LeadLabels[key] = label;
-            if (label == LeadLabel.Descartado)
-                _data.LeadStatusOverrides[key] = LeadStatus.Descartado;
-            else
-                _data.LeadStatusOverrides.Remove(key);
+            _data.LeadStatusOverrides.Remove(key);
         }
         Save();
     }
@@ -278,6 +325,20 @@ public class DataService
 
     public string GetLeadNextContact(string key)
         => _data.LeadNextContacts.TryGetValue(key, out var next) ? next : string.Empty;
+
+    public string GetLeadHandledBy(string key)
+        => _data.LeadHandledBy.TryGetValue(key, out var handledBy) ? handledBy : string.Empty;
+
+    public void SetLeadHandledBy(string key, string? handledBy)
+    {
+        var value = (handledBy ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(value))
+            _data.LeadHandledBy.Remove(key);
+        else
+            _data.LeadHandledBy[key] = value;
+
+        Save();
+    }
 
     public void SetLeadNextContact(string key, string? next)
     {
@@ -340,6 +401,10 @@ public class DataService
         data.LeadLabels ??= new Dictionary<string, LeadLabel>();
         data.LeadNotes ??= new Dictionary<string, string>();
         data.LeadNextContacts ??= new Dictionary<string, string>();
+        data.LeadHandledBy ??= new Dictionary<string, string>();
+        data.LeadEmailSentAt ??= new Dictionary<string, DateTime>();
+        data.LeadWhatsAppSentAt ??= new Dictionary<string, DateTime>();
+        data.LeadPhoneCalledAt ??= new Dictionary<string, DateTime>();
         return data;
     }
 }

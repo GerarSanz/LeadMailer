@@ -3,8 +3,45 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace LeadMailer.Models;
 
 // ─── Estado de un lead ───────────────────────────────────────────────────────
-public enum LeadStatus { Pendiente, Enviado, Descartado }
-public enum LeadLabel  { Ninguna, Interesado, Confirmado, Descartado }
+public enum LeadStatus { Pendiente, EmailEnviado, WhatsAppEnviado, AmbosEnviados }
+public enum LeadLabel
+{
+    Ninguna = 0,
+    Solicitado = 1,
+    ConfirmaSi = 2,
+    DescartadoNoInteresa = 3,
+    InscritoPruebaNivel = 4,
+    Simultaneidad = 5,
+    Reserva = 6,
+    DescartadoSuperaHorasCursoCerrado = 7,
+    DescartadoColectivo = 8,
+    DescartadoPorSector = 9,
+    Inscrito = 10,
+    Realizado = 11,
+    NoIniciaConectaAsiste = 12,
+    DescartadoPorTitulacion = 13,
+    NoLocalizado = 14,
+    BajaLopd = 15,
+    DescartadoPruebaCompetencia = 16,
+    Erroneo = 17,
+
+    Interesado = Solicitado,
+    Confirmado = ConfirmaSi,
+    Descartado = DescartadoNoInteresa
+}
+
+public static class LeadLabelExtensions
+{
+    public static bool IsDiscardLabel(this LeadLabel label)
+        => label is LeadLabel.DescartadoNoInteresa
+            or LeadLabel.DescartadoSuperaHorasCursoCerrado
+            or LeadLabel.DescartadoColectivo
+            or LeadLabel.DescartadoPorSector
+            or LeadLabel.DescartadoPorTitulacion
+            or LeadLabel.BajaLopd
+            or LeadLabel.DescartadoPruebaCompetencia
+            or LeadLabel.Erroneo;
+}
 
 // ─── Lead (una fila del Excel) ───────────────────────────────────────────────
 public class Lead
@@ -279,11 +316,15 @@ public partial class LeadRow : ObservableObject
 
     [ObservableProperty] private bool _isSelected;
     [ObservableProperty] private bool _alreadySent;
+    [ObservableProperty] private DateTime? _emailSentAt;
+    [ObservableProperty] private DateTime? _whatsAppSentAt;
     [ObservableProperty] private bool _isDuplicate;
     [ObservableProperty] private bool _isInvalidEmail;
     [ObservableProperty] private LeadLabel _label = LeadLabel.Ninguna;
     [ObservableProperty] private string _note = "";
     [ObservableProperty] private string _nextContact = "";
+    [ObservableProperty] private string _handledBy = "";
+    [ObservableProperty] private DateTime? _phoneCalledAt;
 
     public string Nombre => Lead.Nombre;
     public string Email => Lead.Email;
@@ -292,56 +333,98 @@ public partial class LeadRow : ObservableObject
     public string SituacionLaboral => Lead.SituacionLaboral;
     public string Plataforma => Lead.Plataforma;
     public string NombreCurso => Course.NombreCorto;
+    public string PhoneCalledAtText => PhoneCalledAt?.ToString("dd/MM HH:mm") ?? string.Empty;
+    public bool PhoneCalled
+    {
+        get => PhoneCalledAt.HasValue;
+        set
+        {
+            if (value)
+            {
+                if (!PhoneCalledAt.HasValue)
+                    PhoneCalledAt = DateTime.Now;
+            }
+            else
+            {
+                if (PhoneCalledAt.HasValue)
+                    PhoneCalledAt = null;
+            }
+        }
+    }
 
-    public bool IsDiscarded => Label == LeadLabel.Descartado;
-    public bool CanSelect => !AlreadySent && Label != LeadLabel.Descartado;
+    public bool IsDiscarded => Label.IsDiscardLabel();
+    public bool CanSelect => !AlreadySent && !IsDiscarded;
 
     public LeadStatus Status
     {
         get
         {
-            if (IsDiscarded) return LeadStatus.Descartado;
-            if (AlreadySent) return LeadStatus.Enviado;
+            if (EmailSentAt.HasValue && WhatsAppSentAt.HasValue) return LeadStatus.AmbosEnviados;
+            if (EmailSentAt.HasValue) return LeadStatus.EmailEnviado;
+            if (WhatsAppSentAt.HasValue) return LeadStatus.WhatsAppEnviado;
             return LeadStatus.Pendiente;
         }
     }
 
     public string EstadoTexto => Status switch
     {
-        LeadStatus.Enviado    => "Enviado",
-        LeadStatus.Descartado => "Descartado",
-        _                     => "Pendiente"
+        LeadStatus.EmailEnviado    => "Email Enviado",
+        LeadStatus.WhatsAppEnviado => "WhatsApp Enviado",
+        LeadStatus.AmbosEnviados   => "Ambos Enviados",
+        _                          => "Pendiente"
     };
 
     private readonly Action<string>?    _onNoteChanged;
     private readonly Action<string>?    _onNextContactChanged;
     private readonly Action<LeadLabel>? _onLabelChanged;
+    private readonly Action<DateTime?>? _onPhoneCalledAtChanged;
 
     public LeadRow(
         Lead lead,
         CourseInfo course,
         bool alreadySent,
+        DateTime? emailSentAt,
+        DateTime? whatsAppSentAt,
+        DateTime? phoneCalledAt,
+        string handledBy,
         LeadLabel label,
         string note,
         Action<string>? onNoteChanged,
         string nextContact,
         Action<string>? onNextContactChanged,
-        Action<LeadLabel>? onLabelChanged = null)
+        Action<LeadLabel>? onLabelChanged = null,
+        Action<DateTime?>? onPhoneCalledAtChanged = null)
     {
         Lead = lead;
         Course = course;
-        _alreadySent = alreadySent;
+        _emailSentAt = emailSentAt;
+        _whatsAppSentAt = whatsAppSentAt;
+        _phoneCalledAt = phoneCalledAt;
+        _handledBy = handledBy;
+        _alreadySent = alreadySent || emailSentAt.HasValue;
         _label = label;
         _note = note;
         _onNoteChanged = onNoteChanged;
         _nextContact = nextContact;
         _onNextContactChanged = onNextContactChanged;
         _onLabelChanged = onLabelChanged;
+        _onPhoneCalledAtChanged = onPhoneCalledAtChanged;
     }
 
     partial void OnAlreadySentChanged(bool value)
     {
         OnPropertyChanged(nameof(CanSelect));
+    }
+
+    partial void OnEmailSentAtChanged(DateTime? value)
+    {
+        AlreadySent = value.HasValue;
+        OnPropertyChanged(nameof(Status));
+        OnPropertyChanged(nameof(EstadoTexto));
+    }
+
+    partial void OnWhatsAppSentAtChanged(DateTime? value)
+    {
         OnPropertyChanged(nameof(Status));
         OnPropertyChanged(nameof(EstadoTexto));
     }
@@ -357,6 +440,12 @@ public partial class LeadRow : ObservableObject
 
     partial void OnNoteChanged(string value) => _onNoteChanged?.Invoke(value);
     partial void OnNextContactChanged(string value) => _onNextContactChanged?.Invoke(value);
+    partial void OnPhoneCalledAtChanged(DateTime? value)
+    {
+        OnPropertyChanged(nameof(PhoneCalled));
+        OnPropertyChanged(nameof(PhoneCalledAtText));
+        _onPhoneCalledAtChanged?.Invoke(value);
+    }
 }
 
 // ─── Información de un curso ─────────────────────────────────────────────────
@@ -394,6 +483,10 @@ public class SmtpConfig
     public string Password      { get; set; } = "";
     public string FromName      { get; set; } = "";
     public string FromEmail     { get; set; } = "";
+    public string CaptadoraNombre { get; set; } = "";
+    public string CaptadoraApellidos { get; set; } = "";
+    public string CloseReportRecipientEmail { get; set; } = "gerardo.sanz@grupoaspasia.com";
+    public string ReportFromDateText { get; set; } = "";
     public string ExcelFilePath  { get; set; } = "";
     public string GeminiApiKey     { get; set; } = "";
     public string OpenRouterApiKey { get; set; } = "";
@@ -428,6 +521,14 @@ public class AppData
     public Dictionary<string, string> LeadNotes { get; set; } = new();
     /// <summary>LeadKey → próximo contacto (texto libre: fecha/hora/acción).</summary>
     public Dictionary<string, string> LeadNextContacts { get; set; } = new();
+    /// <summary>LeadKey → captadora asignada al tratar el lead.</summary>
+    public Dictionary<string, string> LeadHandledBy { get; set; } = new();
+    /// <summary>LeadKey → fecha/hora del último envío exitoso por email.</summary>
+    public Dictionary<string, DateTime> LeadEmailSentAt { get; set; } = new();
+    /// <summary>LeadKey → fecha/hora de apertura de WhatsApp para el lead.</summary>
+    public Dictionary<string, DateTime> LeadWhatsAppSentAt { get; set; } = new();
+    /// <summary>LeadKey → fecha/hora de llamada telefónica.</summary>
+    public Dictionary<string, DateTime> LeadPhoneCalledAt { get; set; } = new();
 }
 
 // ─── Registro de envíos ──────────────────────────────────────────────────────

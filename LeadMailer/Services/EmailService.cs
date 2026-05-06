@@ -69,6 +69,47 @@ public class EmailService
         }
     }
 
+    public async Task<(bool Success, string? Error)> SendReportAsync(
+        SmtpConfig cfg,
+        string toEmail,
+        string subject,
+        string bodyText,
+        string attachmentFileName,
+        byte[] attachmentBytes)
+    {
+        try
+        {
+            var msg = new MimeMessage();
+            var fromEmail = string.IsNullOrWhiteSpace(cfg.FromEmail) ? cfg.Username : cfg.FromEmail;
+            var fromName = string.IsNullOrWhiteSpace(cfg.FromName) ? "LeadMailer" : cfg.FromName;
+
+            msg.From.Add(new MailboxAddress(fromName, fromEmail));
+            msg.To.Add(MailboxAddress.Parse(toEmail));
+            msg.Subject = subject;
+
+            var builder = new BodyBuilder { TextBody = bodyText };
+            builder.Attachments.Add(
+                attachmentFileName,
+                attachmentBytes,
+                ContentType.Parse("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+
+            msg.Body = builder.ToMessageBody();
+
+            using var client = new SmtpClient();
+            var ssl = cfg.EnableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
+            await client.ConnectAsync(cfg.Host, cfg.Port, ssl);
+            await client.AuthenticateAsync(cfg.Username, cfg.Password);
+            await client.SendAsync(msg);
+            await client.DisconnectAsync(true);
+
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
     // ── Test de conexión ──────────────────────────────────────────────────────
     public async Task<(bool Success, string? Error)> TestConnectionAsync(SmtpConfig cfg)
     {
